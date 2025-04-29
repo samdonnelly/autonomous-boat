@@ -1,6 +1,6 @@
 # Autonomous Boat 
 
-Unmanned boat running <a href="https://github.com/samdonnelly/autonomous-navigation">TerraPilot</a>. This repository contains the hardware specific code. Check out my <a href="https://github.com/samdonnelly/autonomous-navigation">project build page</a> for more info. 
+Unmanned boat running <a href="https://github.com/samdonnelly/autonomous-navigation">TerraPilot</a>. This repository contains the hardware specific code. Check out my <a href="https://samueldonnelly11.wixsite.com/builds/autonomous-boat">project build page</a> for more info. 
 
 ### Hardware 
 
