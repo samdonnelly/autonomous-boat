@@ -1,28 +1,22 @@
 /**
- * @file hardware_config_template.h
+ * @file hardware_config.h
  * 
  * @author Sam Donnelly (samueldonnelly11@gmail.com)
  * 
- * @brief System configuration template 
+ * @brief Hardware configuration 
  * 
- * @details This file is a template and is not to be altered unless there is a system 
- *          configuration setting being added or removed. This means these settings should 
- *          not be used to configure your system. Instead, create a "hardware_config.h" file 
- *          in the same folder as this file and redefine each of the macros below (i.e. 
- *          copy the contents of this file) and change those to configure your system. 
- *          "hardware_config.h" is not tracked so it's specific to your use case, but it's 
- *          included in the build path. This file is tracked but excluded from the build 
- *          path. 
+ * @details This is the configuration file the STM32F4. See the hardware configuration 
+ *          template from the STM32F4 driver test. 
  * 
  * @version 0.1
- * @date 2025-02-20
+ * @date 2025-02-25
  * 
  * @copyright Copyright (c) 2025
  * 
  */
 
-#ifndef _HARDWARE_CONFIG_TEMPLATE_H_ 
-#define _HARDWARE_CONFIG_TEMPLATE_H_ 
+#ifndef _HARDWARE_CONFIG_H_ 
+#define _HARDWARE_CONFIG_H_ 
 
 //=======================================================================================
 // Mode configuration 
@@ -30,14 +24,7 @@
 // This needs to be set if using FreeRTOS as it includes additional files and alters 
 // some core code that's used with FreeRTOS. Note that the 'RTOS_ENABLE' variable in 
 // CMakeLists must be updated to match this macro. 
-#define FREERTOS_ENABLE 0 
-
-// Use these to select which code to use and place them around interrupts 
-#define GROUND_STATION 0 
-#define BOAT 0 
-
-// To be removed 
-#define NUM_GPS_WAYPOINTS 0 
+#define FREERTOS_ENABLE 1 
 
 //=======================================================================================
 
@@ -61,7 +48,7 @@
 #define STM32F4_10Tx 0 
 #define STM32F4_10Cx 0 
 #define STM32F4_10Rx 0 
-#define STM32F4_11xE 0 
+#define STM32F4_11xE 1 
 #define STM32F4_46xx 0 
 #define STM32F4_69xx 0 
 #define STM32F4_79xx 0 
@@ -72,6 +59,9 @@
 #define STM32F4_13xx 0 
 #define STM32F4_23xx 0 
 
+#define STM32F411xE 1 
+
 //=======================================================================================
 
-#endif   // _HARDWARE_CONFIG_TEMPLATE_H_ 
+#endif   // _HARDWARE_CONFIG_H_ 
+ 

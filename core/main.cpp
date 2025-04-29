@@ -15,9 +15,6 @@
 //=======================================================================================
 // Includes 
 
-// Configuration 
-#include "hardware_config.h" 
-
 // Library 
 #include "stm32f4xx_hal.h" 
 #include "fatfs.h" 

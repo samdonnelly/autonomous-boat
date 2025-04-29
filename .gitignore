@@ -11,9 +11,3 @@ __pycache__/
 
 # Application files 
 superseded/sources/system_data/gps_coordinates.cpp 
-
-# System configuration 
-hardware/system_config.h
-hardware/hardware_config.h
-
-# Unit tests 
