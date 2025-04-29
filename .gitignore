@@ -1,0 +1,19 @@
+# .gitignore 
+
+# Local file configuration 
+.vscode/
+build/
+*.code-workspace
+
+# Hidden files 
+.DS_Store 
+__pycache__/
+
+# Application files 
+superseded/sources/system_data/gps_coordinates.cpp 
+
+# System configuration 
+hardware/system_config.h
+hardware/hardware_config.h
+
+# Unit tests 
