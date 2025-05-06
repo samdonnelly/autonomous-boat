@@ -266,7 +266,7 @@ void VehicleHardware::HardwareSetup(void)
         I2C_MODE_SM,
         I2C_APB1_42MHZ,
         I2C_CCR_SM_42_100,
-        I2C_TRISE_1000_42);
+        I2C_TRISE_1000_42); 
     
     //==================================================
 
@@ -400,7 +400,7 @@ void VehicleHardware::HardwareSetup(void)
     //==================================================
     // GPS 
 
-    // SAM-M8Q module driver init 
+    // SAM-M8Q driver init 
     m8q_init(
         I2C1, 
         &m8q_config_msgs[0][0], 
@@ -417,18 +417,18 @@ void VehicleHardware::HardwareSetup(void)
     //==================================================
     // IMUs 
 
-    // // MPU-6050 module driver init 
-    // mpu6050_init(
-    //     DEVICE_ONE, 
-    //     I2C1, 
-    //     MPU6050_ADDR_1,
-    //     mpu6050_standby_mask, 
-    //     MPU6050_DLPF_CFG_1,
-    //     mpu6050_sample_rate_divider,
-    //     MPU6050_AFS_SEL_4,
-    //     MPU6050_FS_SEL_500); 
+    // MPU-6050 driver init 
+    mpu6050_init(
+        DEVICE_ONE, 
+        I2C1, 
+        MPU6050_ADDR_1,
+        mpu6050_standby_mask, 
+        MPU6050_DLPF_CFG_1,
+        mpu6050_sample_rate_divider,
+        MPU6050_AFS_SEL_4,
+        MPU6050_FS_SEL_500); 
 
-    // LSM303AGR module driver init 
+    // LSM303AGR driver init 
     lsm303agr_m_init(
         I2C1, 
         lsm303agr_config_dir_offsets, 
@@ -444,7 +444,8 @@ void VehicleHardware::HardwareSetup(void)
 
     //==================================================
     // Radios 
-
+    
+    // SiK telemetry radio driver init 
     sik_init(hardware.telemetry.uart); 
 
     //==================================================
@@ -511,6 +512,13 @@ void VehicleHardware::HardwareSetup(void)
     // Enable the PWM timer 
     tim_enable(hardware.esc_timer); 
 
+    //==================================================
+
+    //==================================================
+    // Device setup processes 
+
+    // Some devices have checks to see if the device is present or data is accurate. 
+    
     //==================================================
 }
 
