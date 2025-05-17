@@ -676,8 +676,16 @@ void VehicleHardware::IMURead(void)
 void VehicleHardware::IMUGet(
     VehicleNavigation::Vector<int16_t> &accel, 
     VehicleNavigation::Vector<int16_t> &gyro, 
+    VehicleNavigation::Vector<int16_t> &mag, 
     int16_t &heading)
 {
+    int16_t mag_data[NUM_AXES]; 
+    
+    lsm303agr_m_get_axis_data(mag_data); 
+    mag.x = mag_data[X_AXIS]; 
+    mag.y = mag_data[Y_AXIS]; 
+    mag.z = mag_data[Z_AXIS]; 
+
     heading = lsm303agr_m_get_heading(); 
 }
 
