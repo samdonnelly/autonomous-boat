@@ -552,8 +552,8 @@ void VehicleHardware::PropulsionSet(
     uint16_t throttle_1, 
     uint16_t throttle_2)
 {
-    esc_pwm_set(hardware.right_esc, throttle_1); 
-    esc_pwm_set(hardware.left_esc, throttle_2); 
+    esc_pwm_set(hardware.left_esc, throttle_1); 
+    esc_pwm_set(hardware.right_esc, throttle_2); 
 }
 
 
