@@ -48,8 +48,13 @@
 // Propulsion and steering 
 #define VS_MOTOR_PWM_OFF 1520      // PWM to turn motor(s) off - can vary between motors/ESCs 
 
-// Mission 
+//==================================================
+// To be made into parameters 
+
+#define VS_TN_OFFSET 134           // Offset between true and magnetic North (degrees*10) 
 #define VS_WAYPOINT_RADIUS 3.0f    // Vehicle acceptance distance to waypoint 
+
+//==================================================
 
 // The vehicle specific settings below only have an affect when the corresponding vehicle 
 // type (VT) is selected. 
