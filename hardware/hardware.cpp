@@ -671,13 +671,12 @@ void VehicleHardware::IMURead(void)
  * 
  * @param accel : accelerometer data 
  * @param gyro : gyroscope data 
- * @param heading : compass/magnetometer heading (degrees*10) 
+ * @param mag : magnetometer axis data (milligauss) 
  */
 void VehicleHardware::IMUGet(
     VehicleNavigation::Vector<int16_t> &accel, 
     VehicleNavigation::Vector<int16_t> &gyro, 
-    VehicleNavigation::Vector<int16_t> &mag, 
-    int16_t &heading)
+    VehicleNavigation::Vector<int16_t> &mag)
 {
     int16_t mag_data[NUM_AXES]; 
     
@@ -685,8 +684,6 @@ void VehicleHardware::IMUGet(
     mag.x = mag_data[X_AXIS]; 
     mag.y = mag_data[Y_AXIS]; 
     mag.z = mag_data[Z_AXIS]; 
-
-    heading = lsm303agr_m_get_heading(); 
 }
 
 //=======================================================================================
