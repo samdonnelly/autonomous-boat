@@ -431,7 +431,6 @@ void VehicleHardware::HardwareSetup(void)
     // LSM303AGR driver init 
     lsm303agr_m_init(
         I2C1, 
-        lsm303agr_config_dir_offsets, 
         lsm303agr_lpf_gain, 
         LSM303AGR_M_ODR_10, 
         LSM303AGR_M_MODE_CONT, 
@@ -680,7 +679,7 @@ void VehicleHardware::IMUGet(
 {
     int16_t mag_data[NUM_AXES]; 
     
-    lsm303agr_m_get_axis_data(mag_data); 
+    lsm303agr_m_get_axis(mag_data); 
     mag.x = mag_data[X_AXIS]; 
     mag.y = mag_data[Y_AXIS]; 
     mag.z = mag_data[Z_AXIS]; 
