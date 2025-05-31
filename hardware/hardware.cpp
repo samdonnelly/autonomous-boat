@@ -431,7 +431,6 @@ void VehicleHardware::HardwareSetup(void)
     // LSM303AGR driver init 
     lsm303agr_m_init(
         I2C1, 
-        lsm303agr_lpf_gain, 
         LSM303AGR_M_ODR_10, 
         LSM303AGR_M_MODE_CONT, 
         LSM303AGR_CFG_DISABLE, 
@@ -665,6 +664,11 @@ void VehicleHardware::IMURead(void)
  *          read from an IMU device if it's available. Data is copied here but not read. 
  *          This function is only called if the data_ready.imu_ready flag is set in the 
  *          IMURead function. 
+ *          
+ *          Magnetometers should have their positive X-axis in the vehicles forward 
+ *          direction and their positive y-axis pointing to the right to ensure heading 
+ *          is calculated properly. If the magnetometer axes don't align with this then 
+ *          just invert the sign of the axis reading. 
  * 
  * @see IMURead 
  * 
@@ -681,7 +685,7 @@ void VehicleHardware::IMUGet(
     
     lsm303agr_m_get_axis(mag_data); 
     mag.x = mag_data[X_AXIS]; 
-    mag.y = mag_data[Y_AXIS]; 
+    mag.y = -mag_data[Y_AXIS];   // Sign inverted to change y-axis direction 
     mag.z = mag_data[Z_AXIS]; 
 }
 

@@ -56,18 +56,6 @@ extern const uint16_t esc_rev_speed_lim;
 
 
 //=======================================================================================
-// LSM303AGR 
-
-// Magnetometer directional offsets to correct for heading errors (units: degrees*10) 
-extern const int16_t lsm303agr_config_dir_offsets[LSM303AGR_M_NUM_DIR]; 
-
-// Heading calculation low pass filter gain 
-extern const double lsm303agr_lpf_gain; 
-
-//=======================================================================================
-
-
-//=======================================================================================
 // M8Q 
 
 extern const char m8q_config_msgs[M8Q_CONFIG_MSG_NUM][M8Q_CONFIG_MSG_MAX_LEN]; 
