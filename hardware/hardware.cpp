@@ -39,6 +39,7 @@
 #define TELEMETRY_MSG_BUFF_SIZE 1000 
 #define RC_MSG_BUFF_SIZE 500 
 #define ADC_BUFF_SIZE 3 
+#define USER_MAX_OUTPUT_STR_SIZE 200 
 
 //=======================================================================================
 
@@ -78,6 +79,7 @@ public:   // public members
 
     // Serial debug 
     USART_TypeDef *user_uart; 
+    char user_output_str[USER_MAX_OUTPUT_STR_SIZE]; 
 
     // ADC 
     ADC_TypeDef *adc; 
@@ -148,6 +150,7 @@ void VehicleHardware::HardwareSetup(void)
 
     // Serial debug 
     hardware.user_uart = USART2; 
+    memset((void *)hardware.user_output_str, CLEAR, sizeof(hardware.user_output_str)); 
 
     // ADC 
     hardware.adc = ADC1; 
@@ -205,10 +208,10 @@ void VehicleHardware::HardwareSetup(void)
         GPIOA, 
         PIN_3, 
         PIN_2, 
-        UART_PARAM_DISABLE,    // Word length 
-        RESET,                 // STOP bits 
-        UART_FRAC_42_9600, 
-        UART_MANT_42_9600, 
+        UART_PARAM_DISABLE, 
+        RESET, 
+        UART_FRAC_42_115200, 
+        UART_MANT_42_115200, 
         UART_PARAM_DISABLE, 
         UART_PARAM_DISABLE); 
 
@@ -577,6 +580,42 @@ void VehicleHardware::SteeringSet(
 
 
 //=======================================================================================
+// Debug 
+
+/**
+ * @brief Write data to a serial connection 
+ * 
+ * @details This function is used when the user needs to temporarily send data to an 
+ *          external device for things such as debugging or IMU calibration through 
+ *          3rd party software. VH_DEBUG_OUTPUT must be enabled in the system config 
+ *          for this function to be called. This function will be called regardless of 
+ *          vehicle state. 
+ */
+void VehicleHardware::DebugWrite(void)
+{
+    //==================================================
+    // IMU calibration with MotionCal 
+
+    int16_t mag_data[NUM_AXES]; 
+    
+    lsm303agr_m_get_axis(mag_data); 
+    
+    snprintf(
+        hardware.user_output_str, 
+        USER_MAX_OUTPUT_STR_SIZE, 
+        "Raw:0,0,0,0,0,0,%d,%d,%d\r\n", 
+        mag_data[X_AXIS], 
+        mag_data[Y_AXIS], 
+        mag_data[Z_AXIS]); 
+    uart_send_str(hardware.user_uart, hardware.user_output_str); 
+    
+    //==================================================
+}
+
+//=======================================================================================
+
+
+//=======================================================================================
 // GPS 
 
 /**
@@ -668,7 +707,8 @@ void VehicleHardware::IMURead(void)
  *          Magnetometers should have their positive X-axis in the vehicles forward 
  *          direction and their positive y-axis pointing to the right to ensure heading 
  *          is calculated properly. If the magnetometer axes don't align with this then 
- *          just invert the sign of the axis reading. 
+ *          just invert the sign of the axis reading. However, if the sign on the axis is 
+ *          inverted, be sure to also do calibration with inverted signs. 
  * 
  * @see IMURead 
  * 
