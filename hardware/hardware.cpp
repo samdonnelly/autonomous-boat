@@ -689,10 +689,14 @@ bool VehicleHardware::GPSGet(VehicleNavigation::Location &location)
  */
 void VehicleHardware::IMURead(void)
 {
+    // Accelerometer and gyroscope 
+    mpu6050_update(DEVICE_ONE); 
+
+    // Magnetometer 
     if (lsm303agr_m_update() == LSM303AGR_OK)
     {
         data_ready.imu_ready = FLAG_SET; 
-    } 
+    }
 }
 
 
@@ -722,8 +726,21 @@ void VehicleHardware::IMUGet(
     VehicleNavigation::Vector<int16_t> &gyro, 
     VehicleNavigation::Vector<int16_t> &mag)
 {
-    int16_t mag_data[NUM_AXES]; 
+    int16_t accel_data[NUM_AXES], gyro_data[NUM_AXES], mag_data[NUM_AXES]; 
+
+    // Accelerometer 
+    mpu6050_get_accel_axis(DEVICE_ONE, accel_data); 
+    accel.x = accel_data[X_AXIS]; 
+    accel.y = accel_data[Y_AXIS]; 
+    accel.z = accel_data[Z_AXIS]; 
+
+    // Gyroscope 
+    mpu6050_get_gyro_axis(DEVICE_ONE, gyro_data); 
+    gyro.x = gyro_data[X_AXIS]; 
+    gyro.y = gyro_data[Y_AXIS]; 
+    gyro.z = gyro_data[Z_AXIS]; 
     
+    // Magnetometer 
     lsm303agr_m_get_axis(mag_data); 
     mag.x = mag_data[X_AXIS]; 
     mag.y = -mag_data[Y_AXIS];   // Sign inverted to change y-axis direction 
