@@ -605,8 +605,8 @@ void VehicleHardware::DebugWrite(void)
         USER_MAX_OUTPUT_STR_SIZE, 
         "Raw:0,0,0,0,0,0,%d,%d,%d\r\n", 
         mag_data[X_AXIS], 
-        mag_data[Y_AXIS], 
-        mag_data[Z_AXIS]); 
+        -mag_data[Y_AXIS], 
+        -mag_data[Z_AXIS]); 
     uart_send_str(hardware.user_uart, hardware.user_output_str); 
     
     //==================================================
