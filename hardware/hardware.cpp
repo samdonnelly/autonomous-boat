@@ -600,6 +600,7 @@ void VehicleHardware::DebugWrite(void)
     
     lsm303agr_m_get_axis(mag_data); 
     
+    // The following string format is needed for MotionCal to read it. 
     snprintf(
         hardware.user_output_str, 
         USER_MAX_OUTPUT_STR_SIZE, 
