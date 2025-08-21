@@ -690,11 +690,7 @@ bool VehicleHardware::GPSGet(VehicleNavigation::Location &location)
  */
 void VehicleHardware::IMURead(void)
 {
-    // Accelerometer and gyroscope 
-    mpu6050_update(DEVICE_ONE); 
-
-    // Magnetometer 
-    if (lsm303agr_m_update() == LSM303AGR_OK)
+    if ((mpu6050_update(DEVICE_ONE) == MPU6050_OK) || (lsm303agr_m_update() == LSM303AGR_OK))
     {
         data_ready.imu_ready = FLAG_SET; 
     }
@@ -709,18 +705,24 @@ void VehicleHardware::IMURead(void)
  *          This function is only called if the data_ready.imu_ready flag is set in the 
  *          IMURead function. 
  *          
- *          Magnetometers should have their positive X-axis in the vehicles forward 
- *          direction, their positive y-axis pointing to the right and the positive 
- *          z-axis pointing down (following the right hand rule) to ensure heading is 
- *          calculated properly. If the magnetometer axes don't align with this then 
- *          just invert the sign of the axis reading. However, if the sign on the axis 
- *          is inverted, be sure to also do calibration with the same sign. 
+ *          IMUs should have their positive X-axis in the vehicles forward direction, 
+ *          their positive y-axis pointing to the left and the positive z-axis pointing 
+ *          up (NWU orientation following right hand rule) to ensure orientation is 
+ *          calculated properly. If the accelerometer, gyroscope or magnetometer axes 
+ *          don't align with this then just invert the sign of the axis reading. However, 
+ *          if the sign on the axis is inverted, be sure to also do calibration with the 
+ *          same sign. 
+ *          
+ *          Note that only the gyroscope units matter and they should be in deg/second. 
+ *          Accelerometer and magnetometer data gets normalized so only the direction of 
+ *          the data vector matters. However, typical dimensions of these are g's for 
+ *          the accelerometer and mG or uT for the magnetometer. 
  * 
  * @see IMURead 
  * 
  * @param accel : accelerometer data 
- * @param gyro : gyroscope data 
- * @param mag : magnetometer axis data (milligauss) 
+ * @param gyro : gyroscope data (deg/s) 
+ * @param mag : magnetometer axis data 
  */
 void VehicleHardware::IMUGet(
     VehicleNavigation::Vector<int16_t> &accel, 
@@ -743,9 +745,9 @@ void VehicleHardware::IMUGet(
     
     // Magnetometer 
     lsm303agr_m_get_axis(mag_data); 
-    mag.x = mag_data[X_AXIS]; 
+    mag.x = mag_data[X_AXIS];
     mag.y = -mag_data[Y_AXIS];   // Sign inverted to change y-axis direction 
-    mag.z = -mag_data[Z_AXIS];   // Sign inverted to change z-axis direction 
+    mag.z = mag_data[Z_AXIS];
 }
 
 //=======================================================================================
