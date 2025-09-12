@@ -70,7 +70,7 @@ extern const char m8q_config_msgs[M8Q_CONFIG_MSG_NUM][M8Q_CONFIG_MSG_MAX_LEN];
 extern const uint8_t mpu6050_standby_mask; 
 
 // Sample Rate Divider 
-extern const MPU6050_SMPLRT_DIV mpu6050_sample_rate_divider; 
+extern const uint8_t mpu6050_sample_rate_divider; 
 
 //=======================================================================================
 
