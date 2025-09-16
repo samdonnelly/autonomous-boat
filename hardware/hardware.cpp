@@ -656,17 +656,36 @@ void VehicleHardware::GPSRead(void)
  * 
  * @see GPSRead 
  * 
- * @param location : latitude, longitude and altitude in both unsigned int and float 
+ * @param location : buffer to store latitude, longitude and altitude from the GPS 
+ * @param location_uncertainty : buffer to store location uncertainty from the GPS measurement 
+ * @param velocity : buffer to store speed over ground, course over ground and vertical velocity from the GPS 
+ * @param velocity_uncertainty : buffer to store velocity uncertainty from the GPS measurement 
  * @return true/false : GPS position lock status 
  */
-bool VehicleHardware::GPSGet(VehicleNavigation::Location &location)
+bool VehicleHardware::GPSGet(
+    VehicleNavigation::Location &location,
+    VehicleNavigation::Location &location_uncertainty,
+    VehicleNavigation::Velocity &velocity,
+    VehicleNavigation::Velocity &velocity_uncertainty)
 {
-    location.lat = (float)m8q_get_position_lat(); 
-    location.lon = (float)m8q_get_position_lon(); 
-    location.alt = m8q_get_position_altref(); 
-    location.latI = m8q_get_position_latI(); 
-    location.lonI = m8q_get_position_lonI(); 
-    location.altI = m8q_get_position_altrefI(); 
+    constexpr float alt_scalar = 1000.0f;
+
+    location.lat = m8q_get_position_lat();                                    // degrees 
+    location.lon = m8q_get_position_lon();                                    // degrees 
+    location.alt = m8q_get_position_altref();                                 // meters 
+    location.latI = static_cast<int32_t>(location.lat / coordinate_scalar);   // degrees*E7 
+    location.lonI = static_cast<int32_t>(location.lon / coordinate_scalar);   // degrees*E7 
+    location.altI = static_cast<int32_t>(location.alt / alt_scalar);          // millimeters 
+    location_uncertainty.lat = m8q_get_position_hacc();                       // meters 
+    location_uncertainty.lon = location_uncertainty.lat;                      // meters 
+    location_uncertainty.alt = m8q_get_position_vacc();                       // meters 
+
+    velocity.sog = m8q_get_position_sog() / kph_to_mps;                       // m/s 
+    velocity.cog = m8q_get_position_cog();                                    // degrees 
+    velocity.vvel = m8q_get_position_vvel();                                  // m/s 
+    velocity_uncertainty.sog = gps_vel_variance[X_AXIS];                      // m/s 
+    velocity_uncertainty.cog = gps_vel_variance[Y_AXIS];                      // degrees 
+    velocity_uncertainty.vvel = gps_vel_variance[Z_AXIS];                     // m/s 
 
     return m8q_get_position_navstat_lock(); 
 }

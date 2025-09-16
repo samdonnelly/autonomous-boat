@@ -58,7 +58,11 @@ extern const uint16_t esc_rev_speed_lim;
 //=======================================================================================
 // M8Q 
 
-extern const char m8q_config_msgs[M8Q_CONFIG_MSG_NUM][M8Q_CONFIG_MSG_MAX_LEN]; 
+// Message configuration 
+extern const char m8q_config_msgs[M8Q_CONFIG_MSG_NUM][M8Q_CONFIG_MSG_MAX_LEN];
+
+// Device data 
+extern const float gps_vel_variance[NUM_AXES];   // GPS velocity measurement variance 
 
 //=======================================================================================
 

@@ -63,6 +63,14 @@ const char m8q_config_msgs[M8Q_CONFIG_MSG_NUM][M8Q_CONFIG_MSG_MAX_LEN] =
     "B562,06,09,0C00,00000000,FFFFFFFF,00000000*" 
 };
 
+// GPS velocity measurement variance 
+const float gps_vel_variance[NUM_AXES] = 
+{
+    1.00f,   // Speed over ground (SOG) 
+    0.30f,   // Course over ground (COG) 
+    1.00f    // Vertical velocity (vVel) 
+};
+
 //=======================================================================================
 
 
