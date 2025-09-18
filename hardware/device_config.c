@@ -34,6 +34,33 @@ const uint16_t esc_rev_speed_lim = 1000;
 
 
 //=======================================================================================
+// LSM303AGR 
+
+const float lsm303agr_hi_offset[NUM_AXES] = 
+{
+    39.8f,     // X 
+    -84.3f,    // Y 
+    -354.3f    // Z 
+};
+
+const float lsm303agr_sid_values[NUM_AXES] = 
+{
+    0.963f,   // X 
+    1.022f,   // Y 
+    1.020f    // Z 
+};
+
+const float lsm303agr_sio_values[NUM_AXES] = 
+{
+    0.019f,    // X 
+    -0.003f,   // Y 
+    -0.016f    // Z 
+};
+
+//=======================================================================================
+
+
+//=======================================================================================
 // M8Q 
 
 // M8Q configuration messages 
@@ -77,8 +104,22 @@ const float gps_vel_variance[NUM_AXES] =
 //=======================================================================================
 // MPU6050 
 
-const uint8_t mpu6050_standby_mask = 0x00; 
-const uint8_t mpu6050_sample_rate_divider = 0; 
+const uint8_t mpu6050_standby_mask = 0x00;
+const uint8_t mpu6050_sample_rate_divider = 0;
+
+const int16_t mpu6050_accel_offsets[NUM_AXES] = 
+{
+    -204,   // X 
+    -86,    // Y 
+    52      // Z 
+};
+
+const int16_t mpu6050_gyro_offsets[NUM_AXES] = 
+{
+    537,    // X 
+    -197,   // Y 
+    21      // Z 
+};
 
 //=======================================================================================
 

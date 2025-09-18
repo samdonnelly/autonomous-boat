@@ -56,6 +56,17 @@ extern const uint16_t esc_rev_speed_lim;
 
 
 //=======================================================================================
+// LSM303AGR
+
+// Hard and soft-iron driver calibration values 
+extern const float lsm303agr_hi_offset[NUM_AXES];         // Hard-iron offsets 
+extern const float lsm303agr_sid_values[NUM_AXES];        // Soft-iron diagonal values 
+extern const float lsm303agr_sio_values[NUM_AXES];        // Soft-iron off-diagonal values 
+
+//=======================================================================================
+
+
+//=======================================================================================
 // M8Q 
 
 // Message configuration 
@@ -70,11 +81,15 @@ extern const float gps_vel_variance[NUM_AXES];   // GPS velocity measurement var
 //=======================================================================================
 // MPU6050 
 
-// Axis standby status mask 
-extern const uint8_t mpu6050_standby_mask; 
+extern const uint8_t mpu6050_standby_mask;          // Axis standby status mask 
+extern const uint8_t mpu6050_sample_rate_divider;   // Sample Rate Divider 
 
-// Sample Rate Divider 
-extern const uint8_t mpu6050_sample_rate_divider; 
+// When setting accelerometer offsets, be mindful not to cancel out gravity (unless that 
+// is desired). The gravity axis offset (typically z when stationary and level) will be 
+// the raw reading minus the scalar listed in the description of mpu6050_fs_sel_set_t 
+// depending on the full scale range set. 
+extern const int16_t mpu6050_accel_offsets[NUM_AXES];   // Accelerometer axis offsets 
+extern const int16_t mpu6050_gyro_offsets[NUM_AXES];    // Gyroscope axis offsets 
 
 //=======================================================================================
 

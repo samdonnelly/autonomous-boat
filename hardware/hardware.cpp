@@ -429,17 +429,19 @@ void VehicleHardware::HardwareSetup(void)
         MPU6050_DLPF_CFG_1,
         mpu6050_sample_rate_divider,
         MPU6050_AFS_SEL_4,
-        MPU6050_FS_SEL_500); 
+        MPU6050_FS_SEL_500);
+    mpu6050_set_offsets(DEVICE_ONE, mpu6050_accel_offsets, mpu6050_gyro_offsets);
 
     // LSM303AGR driver init 
     lsm303agr_m_init(
         I2C1, 
-        LSM303AGR_M_ODR_10, 
+        LSM303AGR_M_ODR_50, 
         LSM303AGR_M_MODE_CONT, 
         LSM303AGR_CFG_DISABLE, 
         LSM303AGR_CFG_DISABLE, 
         LSM303AGR_CFG_DISABLE, 
-        LSM303AGR_CFG_DISABLE); 
+        LSM303AGR_CFG_DISABLE);
+    lsm303agr_m_calibration_set(lsm303agr_hi_offset, lsm303agr_sid_values, lsm303agr_sio_values); 
 
     //==================================================
 
