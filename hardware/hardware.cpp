@@ -670,14 +670,12 @@ bool VehicleHardware::GPSGet(
     VehicleNavigation::Velocity &velocity,
     VehicleNavigation::Velocity &velocity_uncertainty)
 {
-    constexpr float alt_scalar = 1000.0f;
-
     location.lat = m8q_get_position_lat();                                    // degrees 
     location.lon = m8q_get_position_lon();                                    // degrees 
     location.alt = m8q_get_position_altref();                                 // meters 
-    location.latI = static_cast<int32_t>(location.lat / coordinate_scalar);   // degrees*E7 
-    location.lonI = static_cast<int32_t>(location.lon / coordinate_scalar);   // degrees*E7 
-    location.altI = static_cast<int32_t>(location.alt / alt_scalar);          // millimeters 
+    location.latI = static_cast<int32_t>(location.lat * coordinate_scalar);   // degrees*E7 
+    location.lonI = static_cast<int32_t>(location.lon * coordinate_scalar);   // degrees*E7 
+    location.altI = static_cast<int32_t>(location.alt * altitude_scalar);     // millimeters 
     location_uncertainty.lat = m8q_get_position_hacc();                       // meters 
     location_uncertainty.lon = location_uncertainty.lat;                      // meters 
     location_uncertainty.alt = m8q_get_position_vacc();                       // meters 
