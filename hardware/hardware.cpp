@@ -709,7 +709,7 @@ bool VehicleHardware::GPSGet(
  */
 void VehicleHardware::IMURead(void)
 {
-    if ((mpu6050_update(DEVICE_ONE) == MPU6050_OK) || (lsm303agr_m_update() == LSM303AGR_OK))
+    if ((mpu6050_update(DEVICE_ONE) == MPU6050_OK) && (lsm303agr_m_update() == LSM303AGR_OK))
     {
         data_ready.imu_ready = FLAG_SET; 
     }
@@ -752,22 +752,22 @@ void VehicleHardware::IMUGet(
     VehicleNavigation::Vector<float> &gyro, 
     VehicleNavigation::Vector<float> &mag)
 {
-    float accel_data[NUM_AXES], gyro_data[NUM_AXES], mag_data[NUM_AXES]; 
+    std::array<float, NUM_AXES> accel_data, gyro_data, mag_data;
 
     // Accelerometer 
-    mpu6050_get_accel_axis_gs(DEVICE_ONE, accel_data); 
+    mpu6050_get_accel_axis_gs(DEVICE_ONE, accel_data.data()); 
     accel.x = accel_data[X_AXIS]; 
     accel.y = accel_data[Y_AXIS]; 
     accel.z = accel_data[Z_AXIS]; 
 
     // Gyroscope 
-    mpu6050_get_gyro_axis_rate(DEVICE_ONE, gyro_data); 
+    mpu6050_get_gyro_axis_rate(DEVICE_ONE, gyro_data.data()); 
     gyro.x = gyro_data[X_AXIS]; 
     gyro.y = gyro_data[Y_AXIS]; 
     gyro.z = gyro_data[Z_AXIS]; 
     
     // Magnetometer - uncalibrated 
-    lsm303agr_m_get_axis_f(mag_data); 
+    lsm303agr_m_get_axis_f(mag_data.data());
     mag.x = mag_data[X_AXIS];
     mag.y = -mag_data[Y_AXIS];   // Sign inverted to change y-axis direction 
     mag.z = mag_data[Z_AXIS];
