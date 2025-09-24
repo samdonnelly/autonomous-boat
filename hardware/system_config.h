@@ -54,7 +54,7 @@ constexpr float vs_kalman_dt = 0.05f;     // Position Kalman filter prediction c
 //==================================================
 
 // Data sizes 
-#define VS_TELEMETRY_BUFF 1000           // Telemetry data buffer size (bytes) 
+#define VS_TELEMETRY_BUFF 1500           // Telemetry data buffer size (bytes) 
 
 // Propulsion and steering 
 #define VS_MOTOR_PWM_OFF 1520            // PWM to turn motor(s) off - can vary between motors/ESCs 
@@ -65,7 +65,13 @@ constexpr float vs_kalman_dt = 0.05f;     // Position Kalman filter prediction c
 //==================================================
 // To be made into parameters 
 
-constexpr float vs_tn_offset = 13.4f;         // Offset between true and magnetic North (magnetic declination) (degrees) 
+constexpr float vs_accel_sx = 0.1f;          // Accelerometer uncertainty along the X-axis 
+constexpr float vs_accel_sy = 0.1f;          // Accelerometer uncertainty along the X-axis 
+constexpr float vs_accel_sz = 0.1f;          // Accelerometer uncertainty along the X-axis 
+
+constexpr float vs_auto_max_pwm = 1750.0f;   // Max PWM output of motor(s) in autonomous modes 
+
+constexpr float vs_tn_offset = 13.4f;        // Offset between true and magnetic North (magnetic declination) (degrees) 
 
 constexpr float vs_compass_hix = 39.8f;      // Compass X-axis hard-iron offset 
 constexpr float vs_compass_hiy = 84.3f;      // Compass Y-axis hard-iron offset 
@@ -78,10 +84,6 @@ constexpr float vs_compass_sidz = 1.020f;    // Compass Z-axis soft-iron diagona
 constexpr float vs_compass_siox = -0.019f;   // Compass X-axis soft-iron off-diagonal correction 
 constexpr float vs_compass_sioy = -0.003f;   // Compass Y-axis soft-iron off-diagonal correction 
 constexpr float vs_compass_sioz = 0.016f;    // Compass Z-axis soft-iron off-diagonal correction 
-
-constexpr float vs_accel_sx = 0.1f;          // Accelerometer uncertainty along the X-axis 
-constexpr float vs_accel_sy = 0.1f;          // Accelerometer uncertainty along the X-axis 
-constexpr float vs_accel_sz = 0.1f;          // Accelerometer uncertainty along the X-axis 
 
 constexpr float vs_waypoint_radius = 3.0f;   // Vehicle acceptance distance to waypoint (m) 
 
