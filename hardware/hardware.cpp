@@ -36,10 +36,9 @@
 // Macros 
 
 // Buffer sizes 
-#define TELEMETRY_MSG_BUFF_SIZE 1000 
-#define RC_MSG_BUFF_SIZE 500 
-#define ADC_BUFF_SIZE 3 
-#define USER_MAX_OUTPUT_STR_SIZE 200 
+constexpr uint16_t rc_msg_buff_size = 500;
+constexpr uint8_t adc_buff_size = 3;
+constexpr uint16_t user_max_output_str_size = 200;
 
 //=======================================================================================
 
@@ -47,9 +46,19 @@
 //=======================================================================================
 // Hardware data 
 
-class Hardware 
+class Hardware final
 {
-public:   // public types 
+public:
+
+    /**
+     * @brief Constructor 
+     */
+    Hardware();
+
+    /**
+     * @brief Destructor 
+     */
+    ~Hardware() = default;
 
     template <size_t SIZE>
     struct SerialData 
@@ -65,29 +74,41 @@ public:   // public types
         uint16_t data_out_size;           // Size of the outgoing data 
     };
 
-public:   // public members 
-
-    // Actuators 
-    TIM_TypeDef *esc_timer; 
-    device_number_t left_esc, right_esc; 
-
-    // RC 
-    SerialData<RC_MSG_BUFF_SIZE> rc; 
-
-    // Telemetry 
-    SerialData<TELEMETRY_MSG_BUFF_SIZE> telemetry; 
-
-    // Serial debug 
-    USART_TypeDef *user_uart; 
-    char user_output_str[USER_MAX_OUTPUT_STR_SIZE]; 
+    // Peripherals 
+    I2C_TypeDef *i2c;
+    SPI_TypeDef *spi;
+    USART_TypeDef *uart_user;
+    TIM_TypeDef *timer_esc;
+    TIM_TypeDef *timer_generic;
+    ADC_TypeDef *adc;
+    DMA_Stream_TypeDef *adc_dma_stream;
 
     // ADC 
-    ADC_TypeDef *adc; 
-    DMA_Stream_TypeDef *adc_dma_stream; 
-    uint16_t adc_buff[ADC_BUFF_SIZE];     // ADC buffer - battery and PSU voltage 
+    uint16_t adc_buff[adc_buff_size];     // ADC buffer - battery and PSU voltage 
 
-    // Timers 
-    TIM_TypeDef *generic_timer; 
+    // Actuators 
+    device_number_t esc_left, esc_right;
+
+    // Debug 
+    char user_output_str[user_max_output_str_size];
+
+    // GPS 
+    M8Q_STATUS m8q_status;
+
+    // IMU 
+    device_number_t mpu6050_device_num;
+    uint8_t mpu6050_st_result;
+    MPU6050_STATUS mpu6050_status;
+    LSM303AGR_STATUS lsm303agr_status;
+    std::array<float, NUM_AXES> accel, gyro, mag;
+
+    // Memory 
+
+    // RC 
+    SerialData<rc_msg_buff_size> rc;
+
+    // Telemetry 
+    SerialData<vs_telemetry_buff> telemetry;
 };
 
 static Hardware hardware; 
@@ -97,6 +118,41 @@ static Hardware hardware;
 
 //=======================================================================================
 // Initialization 
+
+// Constructor 
+Hardware::Hardware()
+    : i2c(I2C1),
+      spi(SPI2),
+      uart_user(USART2),
+      timer_esc(TIM3),
+      timer_generic(TIM9),
+      adc(ADC1),
+      adc_dma_stream(DMA2_Stream0),
+      adc_buff{},
+      esc_left(DEVICE_TWO), esc_right(DEVICE_ONE),
+      user_output_str{},
+      m8q_status(M8Q_OK),
+      mpu6050_device_num(DEVICE_ONE),
+      mpu6050_st_result(RESET),
+      mpu6050_status(MPU6050_OK),
+      lsm303agr_status(LSM303AGR_OK),
+      accel{}, gyro{}, mag{},
+      rc(),
+      telemetry()
+{
+    // RC 
+    rc.uart = USART6;
+    rc.dma_stream = DMA2_Stream1;
+    rc.cb_index.cb_size = rc_msg_buff_size;
+    rc.dma_index.ndt_old = dma_ndt_read(hardware.rc.dma_stream);
+
+    // Telemetry 
+    telemetry.uart = USART1;
+    telemetry.dma_stream = DMA2_Stream2;
+    telemetry.cb_index.cb_size = vs_telemetry_buff;
+    telemetry.dma_index.ndt_old = dma_ndt_read(hardware.telemetry.dma_stream);
+}
+
 
 /**
  * @brief Vehicle hardware setup code 
@@ -111,54 +167,7 @@ void VehicleHardware::HardwareSetup(void)
     // General 
 
     // Initialize GPIO ports 
-    gpio_port_init(); 
-
-    // Actuators 
-    hardware.esc_timer = TIM3; 
-    hardware.right_esc = DEVICE_ONE; 
-    hardware.left_esc = DEVICE_TWO; 
-
-    // RC 
-    hardware.rc.uart = USART6; 
-    hardware.rc.dma_stream = DMA2_Stream1; 
-    memset((void *)hardware.rc.cb, CLEAR, sizeof(hardware.rc.cb)); 
-    hardware.rc.cb_index.cb_size = RC_MSG_BUFF_SIZE; 
-    hardware.rc.cb_index.head = CLEAR; 
-    hardware.rc.cb_index.tail = CLEAR; 
-    hardware.rc.dma_index.data_size = CLEAR; 
-    hardware.rc.dma_index.ndt_old = dma_ndt_read(hardware.rc.dma_stream); 
-    hardware.rc.dma_index.ndt_new = CLEAR; 
-    memset((void *)hardware.rc.data_in, CLEAR, sizeof(hardware.rc.data_in)); 
-    hardware.rc.data_in_index = CLEAR; 
-    memset((void *)hardware.rc.data_out, CLEAR, sizeof(hardware.rc.data_out)); 
-    hardware.rc.data_out_size = CLEAR; 
-
-    // Telemetry 
-    hardware.telemetry.uart = USART1; 
-    hardware.telemetry.dma_stream = DMA2_Stream2; 
-    memset((void *)hardware.telemetry.cb, CLEAR, sizeof(hardware.telemetry.cb)); 
-    hardware.telemetry.cb_index.cb_size = TELEMETRY_MSG_BUFF_SIZE; 
-    hardware.telemetry.cb_index.head = CLEAR; 
-    hardware.telemetry.cb_index.tail = CLEAR; 
-    hardware.telemetry.dma_index.data_size = CLEAR; 
-    hardware.telemetry.dma_index.ndt_old = dma_ndt_read(hardware.telemetry.dma_stream); 
-    hardware.telemetry.dma_index.ndt_new = CLEAR; 
-    memset((void *)hardware.telemetry.data_in, CLEAR, sizeof(hardware.telemetry.data_in)); 
-    hardware.telemetry.data_in_index = CLEAR; 
-    memset((void *)hardware.telemetry.data_out, CLEAR, sizeof(hardware.telemetry.data_out)); 
-    hardware.telemetry.data_out_size = CLEAR; 
-
-    // Serial debug 
-    hardware.user_uart = USART2; 
-    memset((void *)hardware.user_output_str, CLEAR, sizeof(hardware.user_output_str)); 
-
-    // ADC 
-    hardware.adc = ADC1; 
-    hardware.adc_dma_stream = DMA2_Stream0; 
-    memset((void *)hardware.adc_buff, CLEAR, sizeof(hardware.adc_buff)); 
-
-    // Timers 
-    hardware.generic_timer = TIM9; 
+    gpio_port_init();
 
     //==================================================
 
@@ -167,11 +176,11 @@ void VehicleHardware::HardwareSetup(void)
 
     // General purpose 1us counter 
     tim_9_to_11_counter_init(
-        hardware.generic_timer, 
+        hardware.timer_generic, 
         TIM_84MHZ_1US_PSC, 
         HIGH_16BIT,  // Max ARR value 
         TIM_UP_INT_DISABLE); 
-    tim_enable(hardware.generic_timer); 
+    tim_enable(hardware.timer_generic); 
 
     //==================================================
 
@@ -204,7 +213,7 @@ void VehicleHardware::HardwareSetup(void)
 
     // UART2 init - Serial terminal 
     uart_init(
-        hardware.user_uart, 
+        hardware.uart_user, 
         GPIOA, 
         PIN_3, 
         PIN_2, 
@@ -261,7 +270,7 @@ void VehicleHardware::HardwareSetup(void)
     
     // I2C: GPS, IMU and magnetometer 
     i2c_init(
-        I2C1, 
+        hardware.i2c, 
         PIN_9, 
         GPIOB, 
         PIN_8, 
@@ -304,7 +313,7 @@ void VehicleHardware::HardwareSetup(void)
     // adc_seq(hardware.adc, ADC_CHANNEL_4, ADC_SEQ_3);   // 5V PSU voltage 
 
     // // Set the sequence length (called once and only for more than one channel) 
-    // adc_seq_len_set(hardware.adc, (adc_seq_num_t)ADC_BUFF_SIZE); 
+    // adc_seq_len_set(hardware.adc, (adc_seq_num_t)adc_buff_size); 
 
     // // Turn the ADC on 
     // adc_on(hardware.adc); 
@@ -334,7 +343,7 @@ void VehicleHardware::HardwareSetup(void)
         (uint32_t)(&hardware.telemetry.uart->DR), 
         (uint32_t)hardware.telemetry.cb, 
         (uint32_t)NULL, 
-        (uint16_t)TELEMETRY_MSG_BUFF_SIZE); 
+        (uint16_t)vs_telemetry_buff); 
 
     // DMAX stream init - UART6 - RC receiver 
     dma_stream_init(
@@ -356,7 +365,7 @@ void VehicleHardware::HardwareSetup(void)
         (uint32_t)(&hardware.rc.uart->DR), 
         (uint32_t)hardware.rc.cb, 
         (uint32_t)NULL, 
-        (uint16_t)RC_MSG_BUFF_SIZE); 
+        (uint16_t)rc_msg_buff_size); 
 
     // // DMA2 stream init - ADC1 - Voltages 
     // dma_stream_init(
@@ -378,7 +387,7 @@ void VehicleHardware::HardwareSetup(void)
     //     (uint32_t)(&hardware.adc->DR), 
     //     (uint32_t)hardware.adc_buff, 
     //     (uint32_t)NULL, 
-    //     (uint16_t)ADC_BUFF_SIZE); 
+    //     (uint16_t)adc_buff_size); 
 
     // Enable DMA streams 
     dma_stream_enable(hardware.telemetry.dma_stream);   // UART1 - Sik radio 
@@ -404,8 +413,8 @@ void VehicleHardware::HardwareSetup(void)
     // GPS 
 
     // SAM-M8Q driver init 
-    m8q_init(
-        I2C1, 
+    hardware.m8q_status = m8q_init(
+        hardware.i2c, 
         &m8q_config_msgs[0][0], 
         M8Q_CONFIG_MSG_NUM, 
         M8Q_CONFIG_MSG_MAX_LEN, 
@@ -421,9 +430,9 @@ void VehicleHardware::HardwareSetup(void)
     // IMUs 
 
     // MPU-6050 driver init 
-    mpu6050_init(
+    hardware.mpu6050_status |= mpu6050_init(
         DEVICE_ONE, 
-        I2C1, 
+        hardware.i2c, 
         MPU6050_ADDR_1,
         mpu6050_standby_mask, 
         MPU6050_DLPF_CFG_1,
@@ -433,8 +442,8 @@ void VehicleHardware::HardwareSetup(void)
     mpu6050_set_offsets(DEVICE_ONE, mpu6050_accel_offsets, mpu6050_gyro_offsets);
 
     // LSM303AGR driver init 
-    lsm303agr_m_init(
-        I2C1, 
+    hardware.lsm303agr_status |= lsm303agr_m_init(
+        hardware.i2c, 
         LSM303AGR_M_ODR_50, 
         LSM303AGR_M_MODE_CONT, 
         LSM303AGR_CFG_DISABLE, 
@@ -490,8 +499,8 @@ void VehicleHardware::HardwareSetup(void)
 
     // ESC driver init - right thruster (ESC1) 
     esc_init(
-        hardware.right_esc, 
-        hardware.esc_timer, 
+        hardware.esc_right, 
+        hardware.timer_esc, 
         TIMER_CH4, 
         GPIOB, 
         PIN_1, 
@@ -502,8 +511,8 @@ void VehicleHardware::HardwareSetup(void)
 
     // ESC driver init - left thruster (ESC2) 
     esc_init(
-        hardware.left_esc, 
-        hardware.esc_timer, 
+        hardware.esc_left, 
+        hardware.timer_esc, 
         TIMER_CH3, 
         GPIOB, 
         PIN_0, 
@@ -513,7 +522,7 @@ void VehicleHardware::HardwareSetup(void)
         esc_rev_speed_lim); 
 
     // Enable the PWM timer 
-    tim_enable(hardware.esc_timer); 
+    tim_enable(hardware.timer_esc); 
 
     //==================================================
 
@@ -555,8 +564,8 @@ void VehicleHardware::PropulsionSet(
     uint16_t throttle_1, 
     uint16_t throttle_2)
 {
-    esc_pwm_set(hardware.left_esc, throttle_1); 
-    esc_pwm_set(hardware.right_esc, throttle_2); 
+    esc_pwm_set(hardware.esc_left, throttle_1); 
+    esc_pwm_set(hardware.esc_right, throttle_2); 
 }
 
 
@@ -605,12 +614,12 @@ void VehicleHardware::DebugWrite(void)
     // The following string format is needed for MotionCal to read it. 
     snprintf(
         hardware.user_output_str, 
-        USER_MAX_OUTPUT_STR_SIZE, 
+        user_max_output_str_size, 
         "Raw:0,0,0,0,0,0,%d,%d,%d\r\n", 
         mag_data[X_AXIS], 
         -mag_data[Y_AXIS], 
         -mag_data[Z_AXIS]); 
-    uart_send_str(hardware.user_uart, hardware.user_output_str); 
+    uart_send_str(hardware.uart_user, hardware.user_output_str); 
     
     //==================================================
 }
@@ -634,7 +643,9 @@ void VehicleHardware::DebugWrite(void)
  */
 void VehicleHardware::GPSRead(void)
 {
-    if (m8q_get_tx_ready() && (m8q_read_data() == M8Q_OK))
+    hardware.m8q_status = m8q_read_data();
+
+    if (m8q_get_tx_ready() && (hardware.m8q_status == M8Q_OK))
     {
         data_ready.gps_ready = FLAG_SET; 
     }
@@ -709,7 +720,10 @@ bool VehicleHardware::GPSGet(
  */
 void VehicleHardware::IMURead(void)
 {
-    if ((mpu6050_update(DEVICE_ONE) == MPU6050_OK) && (lsm303agr_m_update() == LSM303AGR_OK))
+    hardware.mpu6050_status = mpu6050_update(hardware.mpu6050_device_num);
+    hardware.lsm303agr_status = lsm303agr_m_update();
+
+    if ((hardware.mpu6050_status == MPU6050_OK) && (hardware.lsm303agr_status == LSM303AGR_OK))
     {
         data_ready.imu_ready = FLAG_SET; 
     }
@@ -752,25 +766,23 @@ void VehicleHardware::IMUGet(
     VehicleNavigation::Vector<float> &gyro, 
     VehicleNavigation::Vector<float> &mag)
 {
-    std::array<float, NUM_AXES> accel_data, gyro_data, mag_data;
-
     // Accelerometer 
-    mpu6050_get_accel_axis_gs(DEVICE_ONE, accel_data.data()); 
-    accel.x = accel_data[X_AXIS]; 
-    accel.y = accel_data[Y_AXIS]; 
-    accel.z = accel_data[Z_AXIS]; 
+    mpu6050_get_accel_axis_gs(DEVICE_ONE, hardware.accel.data()); 
+    accel.x = hardware.accel[X_AXIS]; 
+    accel.y = hardware.accel[Y_AXIS]; 
+    accel.z = hardware.accel[Z_AXIS]; 
 
     // Gyroscope 
-    mpu6050_get_gyro_axis_rate(DEVICE_ONE, gyro_data.data()); 
-    gyro.x = gyro_data[X_AXIS]; 
-    gyro.y = gyro_data[Y_AXIS]; 
-    gyro.z = gyro_data[Z_AXIS]; 
+    mpu6050_get_gyro_axis_rate(DEVICE_ONE, hardware.gyro.data()); 
+    gyro.x = hardware.gyro[X_AXIS]; 
+    gyro.y = hardware.gyro[Y_AXIS]; 
+    gyro.z = hardware.gyro[Z_AXIS]; 
     
     // Magnetometer - uncalibrated 
-    lsm303agr_m_get_axis_f(mag_data.data());
-    mag.x = mag_data[X_AXIS];
-    mag.y = -mag_data[Y_AXIS];   // Sign inverted to change y-axis direction 
-    mag.z = mag_data[Z_AXIS];
+    lsm303agr_m_get_axis_f(hardware.mag.data());
+    mag.x = hardware.mag[X_AXIS];
+    mag.y = -hardware.mag[Y_AXIS];   // Sign inverted to change y-axis direction 
+    mag.z = hardware.mag[Z_AXIS];
 }
 
 //=======================================================================================

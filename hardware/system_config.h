@@ -54,13 +54,13 @@ constexpr float vs_kalman_dt = 0.05f;     // Position Kalman filter prediction c
 //==================================================
 
 // Data sizes 
-#define VS_TELEMETRY_BUFF 1500           // Telemetry data buffer size (bytes) 
+constexpr uint16_t vs_telemetry_buff = 1500;   // Telemetry data buffer size (bytes) 
 
 // Propulsion and steering 
-#define VS_MOTOR_PWM_OFF 1520            // PWM to turn motor(s) off - can vary between motors/ESCs 
+constexpr uint16_t vs_motor_pwm_off = 1520;    // PWM to turn motor(s) off - can vary between motors/ESCs 
 
 // Navigation 
-#define VS_MAG_CAL 1                     // Include magnetometer calibration correction 
+#define VS_MAG_CAL 1                           // Include magnetometer calibration correction 
 
 //==================================================
 // To be made into parameters 
