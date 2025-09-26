@@ -82,6 +82,7 @@ public:
     TIM_TypeDef *timer_generic;
     ADC_TypeDef *adc;
     DMA_Stream_TypeDef *adc_dma_stream;
+    GPIO_TypeDef *gpio_sd;
 
     // ADC 
     uint16_t adc_buff[adc_buff_size];     // ADC buffer - battery and PSU voltage 
@@ -103,6 +104,9 @@ public:
     std::array<float, NUM_AXES> accel, gyro, mag;
 
     // Memory 
+    pin_selector_t sd_ss_pin;   // Slave select pin number 
+    FATFS file_sys;             // File system 
+    FRESULT fresult;            // Result of file system operation 
 
     // RC 
     SerialData<rc_msg_buff_size> rc;
@@ -128,6 +132,7 @@ Hardware::Hardware()
       timer_generic(TIM9),
       adc(ADC1),
       adc_dma_stream(DMA2_Stream0),
+      gpio_sd(GPIOB),
       adc_buff{},
       esc_left(DEVICE_TWO), esc_right(DEVICE_ONE),
       user_output_str{},
@@ -137,6 +142,9 @@ Hardware::Hardware()
       mpu6050_status(MPU6050_OK),
       lsm303agr_status(LSM303AGR_OK),
       accel{}, gyro{}, mag{},
+      sd_ss_pin(PIN_12),
+      file_sys(),
+      fresult(FR_OK),
       rc(),
       telemetry()
 {
@@ -249,19 +257,17 @@ void VehicleHardware::HardwareSetup(void)
     //==================================================
     // SPI 
     
-    // // SPI 2 init - SD card 
-    // spi_init(
-    //     SPI2, 
-    //     GPIOB,               // GPIO port for SCK pin 
-    //     PIN_10,              // SCK pin 
-    //     GPIOB,               // GPIO port for data (MISO/MOSI) pins 
-    //     PIN_14,              // MISO pin 
-    //     PIN_15,              // MOSI pin 
-    //     SPI_BR_FPCLK_8, 
-    //     SPI_CLOCK_MODE_0); 
-
-    // // SD card slave select pin setup 
-    // spi_ss_init(GPIOB, PIN_12); 
+    // SPI and slave select pins: SD card 
+    spi_init(
+        hardware.spi, 
+        hardware.gpio_sd,    // GPIO port for SCK pin 
+        PIN_10,              // SCK pin 
+        hardware.gpio_sd,    // GPIO port for data (MISO/MOSI) pins 
+        PIN_14,              // MISO pin 
+        PIN_15,              // MOSI pin 
+        SPI_BR_FPCLK_8, 
+        SPI_CLOCK_MODE_0);
+    spi_ss_init(hardware.gpio_sd, hardware.sd_ss_pin);
 
     //==================================================
 
@@ -463,13 +469,10 @@ void VehicleHardware::HardwareSetup(void)
     //==================================================
 
     //==================================================
-    // SD Card 
+    // Memory 
 
-    // // User initialization 
-    // hw125_user_init(SPI2, GPIOB, GPIOX_PIN_12); 
-
-    // // Controller init 
-    // hw125_controller_init("auto_boat"); 
+    // SD card driver init 
+    hw125_user_init(hardware.spi, hardware.gpio_sd, static_cast<uint16_t>(SET_BIT << hardware.sd_ss_pin));
 
     //==================================================
 
@@ -643,11 +646,14 @@ void VehicleHardware::DebugWrite(void)
  */
 void VehicleHardware::GPSRead(void)
 {
-    hardware.m8q_status = m8q_read_data();
-
-    if (m8q_get_tx_ready() && (hardware.m8q_status == M8Q_OK))
+    if (m8q_get_tx_ready() == GPIO_HIGH)
     {
-        data_ready.gps_ready = FLAG_SET; 
+        hardware.m8q_status = m8q_read_data();
+        
+        if (hardware.m8q_status == M8Q_OK)
+        {
+            data_ready.gps_ready = FLAG_SET; 
+        }
     }
 }
 
@@ -811,6 +817,19 @@ void VehicleHardware::IMUGet(
  */
 VehicleHardware::HardwareStatus VehicleHardware::MemorySetDirectory(void)
 {
+    hardware.fresult = f_mount(&hardware.file_sys, "", HW125_MOUNT_NOW);
+
+    // Check free space on card? 
+
+    // Check for existance of chosen directory 
+    // f_stat
+
+    // If the directory does not exist (FR_NO_FILE) then create the directory 
+    // f_mkdir
+
+    // Open the chosen directory 
+    // f_opendir
+
     return HardwareStatus::HARDWARE_OK;
 }
 
