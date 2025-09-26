@@ -36,9 +36,13 @@
 // Macros 
 
 // Buffer sizes 
-constexpr uint16_t rc_msg_buff_size = 500;
-constexpr uint8_t adc_buff_size = 3;
-constexpr uint16_t user_max_output_str_size = 200;
+static constexpr uint16_t rc_msg_buff_size = 500;
+static constexpr uint8_t adc_buff_size = 3;
+static constexpr uint16_t user_max_output_str_size = 200;
+
+// Memory 
+static constexpr char memory_dir_path[] = "autonomous_boat";
+static constexpr uint32_t memory_min_free = 100000;   // KB 
 
 //=======================================================================================
 
@@ -105,8 +109,9 @@ public:
 
     // Memory 
     pin_selector_t sd_ss_pin;   // Slave select pin number 
-    FATFS file_sys;             // File system 
     FRESULT fresult;            // Result of file system operation 
+    FATFS file_sys;             // File system 
+    FILINFO fno;                // File information 
 
     // RC 
     SerialData<rc_msg_buff_size> rc;
@@ -143,8 +148,9 @@ Hardware::Hardware()
       lsm303agr_status(LSM303AGR_OK),
       accel{}, gyro{}, mag{},
       sd_ss_pin(PIN_12),
-      file_sys(),
       fresult(FR_OK),
+      file_sys(),
+      fno(),
       rc(),
       telemetry()
 {
@@ -817,18 +823,68 @@ void VehicleHardware::IMUGet(
  */
 VehicleHardware::HardwareStatus VehicleHardware::MemorySetDirectory(void)
 {
+    //==================================================
+    // Mount the drive (required before it can be accessed). 
+
     hardware.fresult = f_mount(&hardware.file_sys, "", HW125_MOUNT_NOW);
 
-    // Check free space on card? 
+    if (hardware.fresult != FR_OK)
+    {
+        return HardwareStatus::MEMORY_DIR_FAULT;
+    }
+    
+    //==================================================
 
+    //==================================================
+    // Check free space on card 
+
+    uint32_t free_clusters, free_space;
+    FATFS *fs_ptr;
+    
+    hardware.fresult = f_getfree("", &free_clusters, &fs_ptr);
+
+    if (hardware.fresult == FR_OK)
+    {
+        // Calculate the free space 
+        free_space = free_clusters * static_cast<uint32_t>(fs_ptr->csize) / 2;
+
+        if (free_space < memory_min_free)
+        {
+            return HardwareStatus::MEMORY_DIR_FAULT;
+        }
+    }
+
+    //==================================================
+
+    //==================================================
     // Check for existance of chosen directory 
-    // f_stat
 
-    // If the directory does not exist (FR_NO_FILE) then create the directory 
-    // f_mkdir
+    hardware.fresult = f_stat(memory_dir_path, &hardware.fno);
+    
+    if (hardware.fresult == FR_NO_FILE)
+    {
+        // If the directory does not exist then create the directory 
+        hardware.fresult = f_mkdir(memory_dir_path);
+    }
+    
+    if (hardware.fresult != FR_OK)
+    {
+        return HardwareStatus::MEMORY_DIR_FAULT;
+    }
+    
+    //==================================================
 
-    // Open the chosen directory 
-    // f_opendir
+    //==================================================
+    // Switch to the chosen directory 
+
+    hardware.fresult = f_chdir(memory_dir_path);
+
+    if (hardware.fresult != FR_OK)
+    {
+        return HardwareStatus::MEMORY_DIR_FAULT;
+    }
+    
+    //==================================================
 
     return HardwareStatus::HARDWARE_OK;
 }
