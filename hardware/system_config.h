@@ -65,9 +65,9 @@ constexpr uint16_t vs_motor_pwm_off = 1520;    // PWM to turn motor(s) off - can
 //==================================================
 // To be made into parameters 
 
-constexpr float vs_accel_sx = 0.1f;          // Accelerometer uncertainty along the X-axis 
-constexpr float vs_accel_sy = 0.1f;          // Accelerometer uncertainty along the X-axis 
-constexpr float vs_accel_sz = 0.1f;          // Accelerometer uncertainty along the X-axis 
+constexpr float vs_accel_sx = 0.05f;         // Accelerometer uncertainty along the X-axis 
+constexpr float vs_accel_sy = 0.05f;         // Accelerometer uncertainty along the X-axis 
+constexpr float vs_accel_sz = 0.05f;         // Accelerometer uncertainty along the X-axis 
 
 constexpr float vs_auto_max_pwm = 1750.0f;   // Max PWM output of motor(s) in autonomous modes 
 
