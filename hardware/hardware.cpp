@@ -39,6 +39,8 @@
 static constexpr uint16_t rc_msg_buff_size = 500;
 static constexpr uint8_t adc_buff_size = 3;
 static constexpr uint16_t user_max_output_str_size = 200;
+static constexpr uint8_t file_name_size = 50;
+static constexpr uint8_t file_data_size = 250;
 
 // Memory 
 static constexpr char memory_dir_path[] = "autonomous_boat";
@@ -112,6 +114,9 @@ public:
     FRESULT fresult;            // Result of file system operation 
     FATFS file_sys;             // File system 
     FILINFO fno;                // File information 
+    FIL file;                   // File object 
+    TCHAR file_name[file_name_size];
+    TCHAR file_read_data[file_data_size], file_write_data[file_data_size];
 
     // RC 
     SerialData<rc_msg_buff_size> rc;
@@ -151,6 +156,9 @@ Hardware::Hardware()
       fresult(FR_OK),
       file_sys(),
       fno(),
+      file(),
+      file_name{},
+      file_read_data{}, file_write_data{},
       rc(),
       telemetry()
 {
@@ -478,7 +486,7 @@ void VehicleHardware::HardwareSetup(void)
     // Memory 
 
     // SD card driver init 
-    hw125_user_init(hardware.spi, hardware.gpio_sd, static_cast<uint16_t>(SET_BIT << hardware.sd_ss_pin));
+    fatfs_user_init(hardware.spi, hardware.gpio_sd, static_cast<uint16_t>(SET_BIT << hardware.sd_ss_pin));
 
     //==================================================
 
@@ -803,34 +811,43 @@ void VehicleHardware::IMUGet(
 //=======================================================================================
 // Memory 
 
+// Does remounting the card have an affect on the current directory or file? 
+// When you close and open a file, does the position go to the start, end, or where it was last? 
+// --> What about when you close one file, open and close another, the reopen the first file? 
+
 /**
- * @brief Set the directory to store and access files on the external memory device 
+ * @brief Establish the directory to store and access files on the external memory device 
  * 
- * @details This function will be called on startup of the system to establish the 
- *          directory from which to read and write file data. Everything needed to get 
- *          talking to the external memory should be done here (ex. SD cards may require 
- *          being mounted before they can be used). The path to the directory is chosen 
- *          by the user. The directory should be created if it does not exist, but if it 
- *          does exist then it should not be overwritten. After this is done, the chosen 
- *          directory should be navigated to. This then allows files to be opened and 
- *          closed without needing to re-specify the directory, only the file name. The 
- *          file name will be provided by the autopilot when the file open and close 
- *          functions are called so the user does not need to create files after 
- *          establishing the directory. The status of these operations must be returned 
- *          so the autopilot knows to try again or that there's an error. 
+ * @details This function will be called once from the autopilots initialization state to 
+ *          establish the directory from which to read and write file data. Everything 
+ *          needed to get talking to the external memory should be done here (ex. SD 
+ *          cards may require being mounted before they can be used). The path to the 
+ *          directory is chosen by the user (the autopilot will simply read and write 
+ *          within whatever directory has been established). The directory should be 
+ *          created if it does not exist, but if it does exist then it should not be 
+ *          overwritten. After this is done, the chosen directory should be navigated to. 
+ *          This then allows files to be opened and closed without needing to re-specify 
+ *          the directory, only the file name. The file name will be set by the autopilot 
+ *          before opening a file and not changed until after the file has been closed. 
+ *          Files are not created/opened here. In the event of an autopilot reset, this 
+ *          function will be called again so checks should be done to ensure the desired 
+ *          directory is maintained. The status of these operations must be returned so 
+ *          the autopilot knows to try again or that there's an error. 
  * 
- * @return VehicleHardware::HardwareStatus : MEMORY_DIR_FAULT for problems, HARDWARE_OK otherwise 
+ * @return VehicleHardware::MemoryStatus : MEMORY_DIR_FAULT for problems, MEMORY_OK otherwise 
  */
-VehicleHardware::HardwareStatus VehicleHardware::MemorySetDirectory(void)
+VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
 {
+    static uint8_t directory_status = FLAG_CLEAR;
+
     //==================================================
     // Mount the drive (required before it can be accessed). 
 
-    hardware.fresult = f_mount(&hardware.file_sys, "", HW125_MOUNT_NOW);
+    hardware.fresult = f_mount(&hardware.file_sys, "", FATFS_MOUNT_NOW);
 
     if (hardware.fresult != FR_OK)
     {
-        return HardwareStatus::MEMORY_DIR_FAULT;
+        return MemoryStatus::MEMORY_DIR_FAULT;
     }
     
     //==================================================
@@ -850,43 +867,64 @@ VehicleHardware::HardwareStatus VehicleHardware::MemorySetDirectory(void)
 
         if (free_space < memory_min_free)
         {
-            return HardwareStatus::MEMORY_DIR_FAULT;
+            return MemoryStatus::MEMORY_DIR_FAULT;
         }
     }
 
     //==================================================
 
-    //==================================================
-    // Check for existance of chosen directory 
-
-    hardware.fresult = f_stat(memory_dir_path, &hardware.fno);
-    
-    if (hardware.fresult == FR_NO_FILE)
+    // Make sure multiple directories don't get created if this function gets called 
+    // more than once. 
+    if (directory_status != FLAG_SET)
     {
-        // If the directory does not exist then create the directory 
-        hardware.fresult = f_mkdir(memory_dir_path);
-    }
+        //==================================================
+        // Check for existance of the chosen directory 
     
-    if (hardware.fresult != FR_OK)
+        hardware.fresult = f_stat(memory_dir_path, &hardware.fno);
+        
+        if (hardware.fresult == FR_NO_FILE)
+        {
+            // If the directory does not exist then create the directory 
+            hardware.fresult = f_mkdir(memory_dir_path);
+        }
+        
+        if (hardware.fresult != FR_OK)
+        {
+            return MemoryStatus::MEMORY_DIR_FAULT;
+        }
+        
+        //==================================================
+    
+        //==================================================
+        // Switch to the chosen directory 
+    
+        hardware.fresult = f_chdir(memory_dir_path);
+    
+        if (hardware.fresult != FR_OK)
+        {
+            return MemoryStatus::MEMORY_DIR_FAULT;
+        }
+    
+        directory_status = FLAG_SET;
+        
+        //==================================================
+    }
+
+    return MemoryStatus::MEMORY_OK;
+}
+
+
+/**
+ * @brief Set the name of the file to access 
+ * 
+ * @param file_name : string containing the name of the file to be opened 
+ */
+void VehicleHardware::MemorySetFileName(char *file_name)
+{
+    if (file_name != nullptr)
     {
-        return HardwareStatus::MEMORY_DIR_FAULT;
+        strcpy(hardware.file_name, file_name);
     }
-    
-    //==================================================
-
-    //==================================================
-    // Switch to the chosen directory 
-
-    hardware.fresult = f_chdir(memory_dir_path);
-
-    if (hardware.fresult != FR_OK)
-    {
-        return HardwareStatus::MEMORY_DIR_FAULT;
-    }
-    
-    //==================================================
-
-    return HardwareStatus::HARDWARE_OK;
 }
 
 
@@ -905,12 +943,33 @@ VehicleHardware::HardwareStatus VehicleHardware::MemorySetDirectory(void)
  *          check for an already open file (and close it if it's open) before attempting 
  *          to open the specified file. 
  * 
- * @param file_name : string containing the name of the file to be opened 
- * @return VehicleHardware::HardwareStatus : MEMORY_OPEN_FAULT for problems, HARDWARE_OK otherwise 
+ * @return VehicleHardware::MemoryStatus : MEMORY_OPEN_FAULT for problems, MEMORY_OK otherwise 
  */
-VehicleHardware::HardwareStatus VehicleHardware::MemoryOpenFile(char *file_name)
+VehicleHardware::MemoryStatus VehicleHardware::MemoryOpenFile(void)
 {
-    return HardwareStatus::HARDWARE_OK;
+    // Check for the existance of the specified file 
+    hardware.fresult = f_stat(hardware.file_name, &hardware.fno);
+
+    switch(hardware.fresult)
+    {
+        case FR_OK:
+            // File exists. Go to the beginning of the file and return a status indicating 
+            // the file is ready. 
+            break;
+
+        case FR_NO_FILE:
+            // File does not exist. Return a status indicating the file is new/emty. 
+            break;
+
+        default:
+            break;
+    }
+
+    // Attempt to open the file with read and write permissions. The access mode used will 
+    // open the file if it exists, or create and open a new file if it does not exist. 
+    hardware.fresult = f_open(&hardware.file, hardware.file_name, FATFS_MODE_OAWR);
+
+    return MemoryStatus::MEMORY_OK;
 }
 
 
@@ -921,12 +980,11 @@ VehicleHardware::HardwareStatus VehicleHardware::MemoryOpenFile(char *file_name)
  *          The name of the file to be closed is provided. The status of the close 
  *          operation must be returned so the autopilot can act accordingly. 
  * 
- * @param file_name : string containing the name of the file to be closed 
- * @return VehicleHardware::HardwareStatus : MEMORY_CLOSE_FAULT for problems, HARDWARE_OK otherwise 
+ * @return VehicleHardware::MemoryStatus : MEMORY_CLOSE_FAULT for problems, MEMORY_OK otherwise 
  */
-VehicleHardware::HardwareStatus VehicleHardware::MemoryCloseFile(char *file_name)
+VehicleHardware::MemoryStatus VehicleHardware::MemoryCloseFile(void)
 {
-    return HardwareStatus::HARDWARE_OK;
+    return MemoryStatus::MEMORY_OK;
 }
 
 
@@ -947,12 +1005,39 @@ VehicleHardware::HardwareStatus VehicleHardware::MemoryCloseFile(char *file_name
  * 
  * @see MemoryCloseFile
  * 
- * @param data_buff : buffer to store data read from the device 
- * @return VehicleHardware::HardwareStatus : MEMORY_READ_FAULT for problems, HARDWARE_OK otherwise 
+ * @return VehicleHardware::MemoryStatus : MEMORY_READ_FAULT for problems, MEMORY_OK otherwise 
  */
-VehicleHardware::HardwareStatus VehicleHardware::MemoryRead(char *data_buff)
+VehicleHardware::MemoryStatus VehicleHardware::MemoryRead(void)
 {
-    return HardwareStatus::HARDWARE_OK;
+    return MemoryStatus::MEMORY_OK;
+}
+
+
+/**
+ * @brief Get the data read from memory 
+ * 
+ * @param data_buff : buffer to store data read from the device 
+ */
+void VehicleHardware::MemoryGetData(char *data_buff)
+{
+    if (data_buff != nullptr)
+    {
+        strcpy(data_buff, hardware.file_read_data);
+    }
+}
+
+
+/**
+ * @brief Set the data to be written to memory 
+ * 
+ * @param data_buff : buffer containing data to write to the device 
+ */
+void VehicleHardware::MemorySetData(char *data_buff)
+{
+    if (data_buff != nullptr)
+    {
+        strcpy(hardware.file_write_data, data_buff);
+    }
 }
 
 
@@ -970,12 +1055,11 @@ VehicleHardware::HardwareStatus VehicleHardware::MemoryRead(char *data_buff)
  *          properly based on feedback from these functions but the user can optionally 
  *          check that a file is open before attempting to write data. 
  * 
- * @param data_buff : buffer containing data to write to the device 
- * @return VehicleHardware::HardwareStatus : MEMORY_WRITE_FAULT for problems, HARDWARE_OK otherwise 
+ * @return VehicleHardware::MemoryStatus : MEMORY_WRITE_FAULT for problems, MEMORY_OK otherwise 
  */
-VehicleHardware::HardwareStatus VehicleHardware::MemoryWrite(char *data_buff)
+VehicleHardware::MemoryStatus VehicleHardware::MemoryWrite(void)
 {
-    return HardwareStatus::HARDWARE_OK;
+    return MemoryStatus::MEMORY_OK;
 }
 
 //=======================================================================================
