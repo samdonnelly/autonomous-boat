@@ -39,8 +39,7 @@
 static constexpr uint16_t rc_msg_buff_size = 500;
 static constexpr uint8_t adc_buff_size = 3;
 static constexpr uint16_t user_max_output_str_size = 200;
-static constexpr uint8_t file_name_size = 50;
-static constexpr uint8_t file_data_size = 250;
+static constexpr uint8_t path_size = 200;
 
 // Memory 
 static constexpr char memory_dir_path[] = "autonomous_boat";
@@ -115,14 +114,14 @@ public:
     FATFS file_sys;             // File system 
     FILINFO fno;                // File information 
     FIL file;                   // File object 
-    TCHAR file_name[file_name_size];
-    TCHAR file_read_data[file_data_size], file_write_data[file_data_size];
+    TCHAR path[path_size];
+    TCHAR file_read_data[memory_buff_size], file_write_data[memory_buff_size];
 
     // RC 
     SerialData<rc_msg_buff_size> rc;
 
     // Telemetry 
-    SerialData<vs_telemetry_buff> telemetry;
+    SerialData<telemetry_buff_size> telemetry;
 };
 
 static Hardware hardware; 
@@ -157,7 +156,7 @@ Hardware::Hardware()
       file_sys(),
       fno(),
       file(),
-      file_name{},
+      path{},
       file_read_data{}, file_write_data{},
       rc(),
       telemetry()
@@ -171,7 +170,7 @@ Hardware::Hardware()
     // Telemetry 
     telemetry.uart = USART1;
     telemetry.dma_stream = DMA2_Stream2;
-    telemetry.cb_index.cb_size = vs_telemetry_buff;
+    telemetry.cb_index.cb_size = telemetry_buff_size;
     telemetry.dma_index.ndt_old = dma_ndt_read(hardware.telemetry.dma_stream);
 }
 
@@ -363,7 +362,7 @@ void VehicleHardware::HardwareSetup(void)
         (uint32_t)(&hardware.telemetry.uart->DR), 
         (uint32_t)hardware.telemetry.cb, 
         (uint32_t)NULL, 
-        (uint16_t)vs_telemetry_buff); 
+        (uint16_t)telemetry_buff_size); 
 
     // DMAX stream init - UART6 - RC receiver 
     dma_stream_init(
@@ -816,30 +815,28 @@ void VehicleHardware::IMUGet(
 // --> What about when you close one file, open and close another, the reopen the first file? 
 
 /**
- * @brief Establish the directory to store and access files on the external memory device 
+ * @brief Setup the external memory device for file access 
  * 
- * @details This function will be called once from the autopilots initialization state to 
- *          establish the directory from which to read and write file data. Everything 
- *          needed to get talking to the external memory should be done here (ex. SD 
- *          cards may require being mounted before they can be used). The path to the 
- *          directory is chosen by the user (the autopilot will simply read and write 
- *          within whatever directory has been established). The directory should be 
- *          created if it does not exist, but if it does exist then it should not be 
- *          overwritten. After this is done, the chosen directory should be navigated to. 
- *          This then allows files to be opened and closed without needing to re-specify 
- *          the directory, only the file name. The file name will be set by the autopilot 
- *          before opening a file and not changed until after the file has been closed. 
- *          Files are not created/opened here. In the event of an autopilot reset, this 
- *          function will be called again so checks should be done to ensure the desired 
- *          directory is maintained. The status of these operations must be returned so 
- *          the autopilot knows to try again or that there's an error. 
+ * @details The autopilot calls this function to establish the external memory device. 
+ *          Everything needed to get talking to the external memory should be done here. 
+ *          This could include, but is not limited to, mounting the device, checking for 
+ *          sufficient free space, or creating the directory from which to operate from. 
+ *          See the description of the MemorySetFileName function for options on file 
+ *          paths and directories. No files should be created or opened here as that is 
+ *          handled through the implementation of the other memory functions. By the 
+ *          end of this function, the device should be ready for the autopilot to use. 
+ *          
+ *          Note that the autopilot makes decisions based on the status of these functions 
+ *          so it's important the user provides the correct return values. 
  * 
- * @return VehicleHardware::MemoryStatus : MEMORY_DIR_ERROR for problems, MEMORY_OK otherwise 
+ * @see MemorySetFileName
+ * 
+ * @return VehicleHardware::MemoryStatus : MEMORY_CAP_ERROR --> Insufficient free space on device 
+ *                                         MEMORY_ACCESS_ERROR --> Problem accessing device 
+ *                                         MEMORY_OK --> Memory ready for access, everything OK 
  */
-VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
+VehicleHardware::MemoryStatus VehicleHardware::MemorySetup(void)
 {
-    static uint8_t directory_status = FLAG_CLEAR;
-
     //==================================================
     // Mount the drive (required before it can be accessed). 
 
@@ -847,7 +844,7 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
 
     if (hardware.fresult != FR_OK)
     {
-        return MemoryStatus::MEMORY_DIR_ERROR;
+        return MemoryStatus::MEMORY_ACCESS_ERROR;
     }
     
     //==================================================
@@ -873,42 +870,23 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
 
     //==================================================
 
-    // Make sure multiple directories don't get created if this function gets called 
-    // more than once. 
-    if (directory_status != FLAG_SET)
+    //==================================================
+    // Check for existance of the chosen directory 
+
+    hardware.fresult = f_stat(memory_dir_path, &hardware.fno);
+    
+    if (hardware.fresult == FR_NO_FILE)
     {
-        //==================================================
-        // Check for existance of the chosen directory 
-    
-        hardware.fresult = f_stat(memory_dir_path, &hardware.fno);
-        
-        if (hardware.fresult == FR_NO_FILE)
-        {
-            // If the directory does not exist then create the directory 
-            hardware.fresult = f_mkdir(memory_dir_path);
-        }
-        
-        if (hardware.fresult != FR_OK)
-        {
-            return MemoryStatus::MEMORY_DIR_ERROR;
-        }
-        
-        //==================================================
-    
-        //==================================================
-        // Switch to the chosen directory 
-    
-        hardware.fresult = f_chdir(memory_dir_path);
-    
-        if (hardware.fresult != FR_OK)
-        {
-            return MemoryStatus::MEMORY_DIR_ERROR;
-        }
-    
-        directory_status = FLAG_SET;
-        
-        //==================================================
+        // If the directory does not exist then create the directory 
+        hardware.fresult = f_mkdir(memory_dir_path);
     }
+    
+    if (hardware.fresult != FR_OK)
+    {
+        return MemoryStatus::MEMORY_ACCESS_ERROR;
+    }
+    
+    //==================================================
 
     return MemoryStatus::MEMORY_OK;
 }
@@ -917,13 +895,35 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
 /**
  * @brief Set the name of the file to access 
  * 
+ * @details The autopilot will call this function when it needs to specify a file to 
+ *          open. The file name is provided and this function must use the name to 
+ *          establish a path to the file. That path will then be used to open the file 
+ *          when the autopilot calls the MemoryOpenFile function. The user can handle the 
+ *          path in one of two ways: 
+ *          1. The external memory device is already in the directory where files should 
+ *             be accessed so only the file name is used as the path. Changing the 
+ *             directory should be done in the MemorySetup function, NOT here. 
+ *          2. Alternatively, the file name can be appended to the path of the directory 
+ *             where files should be accessed. This way the full path from the root is 
+ *             used to open the file. 
+ *          
+ *          The buffer used to store the path should be large enough to store whatever 
+ *          path method the user chooses. 
+ * 
+ * @see MemoryOpenFile
+ * @see MemorySetup
+ * 
  * @param file_name : string containing the name of the file to be opened 
+ * @param file_name_size : size of the file name 
  */
-void VehicleHardware::MemorySetFileName(char *file_name)
+void VehicleHardware::MemorySetFileName(
+    char *file_name, 
+    uint16_t file_name_size)
 {
-    if (file_name != nullptr)
+    if ((file_name != nullptr) && 
+        ((file_name_size + static_cast<uint16_t>(sizeof(memory_dir_path))) < path_size))
     {
-        strcpy(hardware.file_name, file_name);
+        snprintf(hardware.path, path_size, "%s%s%s", memory_dir_path, "/", file_name);
     }
 }
 
@@ -932,61 +932,65 @@ void VehicleHardware::MemorySetFileName(char *file_name)
  * @brief Open a file on the external memory device 
  * 
  * @details This function will be called by the autopilot when a file needs to be opened 
- *          for reading or writing. A file name is provided and this function must open 
- *          that file if it exists (without overwritting it) or create and open the file 
- *          if it does not exist. The file should be opened with both read and write 
- *          permissions. The status of the open operation must be returned so the 
- *          autopilot can act accordingly. 
+ *          for reading or writing. The file name is set in MemorySetFileName which will 
+ *          be called by the autopilot to establish a path before attempting to open the 
+ *          file. This function must use the set path to open the file if it exists 
+ *          (without overwritting it) or create and open the file if it does not exist. 
+ *          The file should be opened with both read and write permissions and the 
+ *          position in the file should be set to the start. The return status must 
+ *          indicate if the file previously existed or not so the autopilot knows how to 
+ *          handle the file. 
  *          
- *          Note that the autopilot takes measures to ensure files are opened and closed 
- *          properly based on feedback from these functions but the user can optionally 
- *          check for an already open file (and close it if it's open) before attempting 
- *          to open the specified file. 
+ *          Note that the autopilot makes decisions based on the status of these functions 
+ *          so it's important the user provides the correct return values. 
  * 
- * @return VehicleHardware::MemoryStatus : MEMORY_OPEN_FAULT for problems, MEMORY_OK otherwise 
+ * @see MemorySetFileName
+ * 
+ * @return VehicleHardware::MemoryStatus : MEMORY_FILE_OPENED --> File exists and was opened 
+ *                                         MEMORY_FILE_CREATED --> File did not exist, was created and opened 
+ *                                         MEMORY_ACCESS_ERROR --> Problem accessing device 
  */
 VehicleHardware::MemoryStatus VehicleHardware::MemoryOpenFile(void)
 {
     MemoryStatus memory_status;
 
     // Check for the existance of the specified file 
-    hardware.fresult = f_stat(hardware.file_name, &hardware.fno);
+    hardware.fresult = f_stat(hardware.path, &hardware.fno);
 
     switch(hardware.fresult)
     {
         case FR_OK:
-            // File exists. Go to the beginning of the file and return a status indicating 
-            // the file is ready. 
+            // File exists. Autopilot can read from it. 
             memory_status = MemoryStatus::MEMORY_FILE_OPENED;
             break;
 
         case FR_NO_FILE:
-            // File does not exist. Return a status indicating the file is new/emty. 
+            // File does not exist. Autopilot can write to it. 
             memory_status = MemoryStatus::MEMORY_FILE_CREATED;
             break;
 
         default:
-            memory_status = MemoryStatus::MEMORY_OPEN_ERROR;
+            memory_status = MemoryStatus::MEMORY_ACCESS_ERROR;
             break;
     }
 
-    if (memory_status != MemoryStatus::MEMORY_OPEN_ERROR)
+    if (memory_status != MemoryStatus::MEMORY_ACCESS_ERROR)
     {
         // Attempt to open the file with read and write permissions. The access mode used will 
         // open the file if it exists, or create and open a new file if it does not exist. 
-        hardware.fresult = f_open(&hardware.file, hardware.file_name, FATFS_MODE_OAWR);
+        hardware.fresult = f_open(&hardware.file, hardware.path, FATFS_MODE_OAWR);
     
         if (hardware.fresult == FR_OK)
         {
             if (memory_status == MemoryStatus::MEMORY_FILE_OPENED)
             {
                 // Go to start of file. 
-                hardware.fresult = f_lseek(&hardware.file, RESET);
+                f_rewind(&hardware.file);
             }
         }
         else
         {
-            memory_status = MemoryStatus::MEMORY_OPEN_ERROR;
+            memory_status = MemoryStatus::MEMORY_ACCESS_ERROR;
         }
     }
 
@@ -997,14 +1001,24 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryOpenFile(void)
 /**
  * @brief Close a file on the external memory device 
  * 
- * @details This function will be called by the autopilot when a file needs to be closed. 
- *          The name of the file to be closed is provided. The status of the close 
- *          operation must be returned so the autopilot can act accordingly. 
+ * @details This function will be called by the autopilot when an open file needs to be 
+ *          closed. The status of the close operation must be returned. 
+ *          
+ *          Note that the autopilot makes decisions based on the status of these functions 
+ *          so it's important the user provides the correct return values. 
  * 
- * @return VehicleHardware::MemoryStatus : MEMORY_CLOSE_FAULT for problems, MEMORY_OK otherwise 
+ * @return VehicleHardware::MemoryStatus : MEMORY_ACCESS_ERROR --> Problem accessing device 
+ *                                         MEMORY_OK --> File closed, everything OK 
  */
 VehicleHardware::MemoryStatus VehicleHardware::MemoryCloseFile(void)
 {
+    hardware.fresult = f_close(&hardware.file);
+
+    if (hardware.fresult != FR_OK)
+    {
+        return MemoryStatus::MEMORY_ACCESS_ERROR;
+    }
+
     return MemoryStatus::MEMORY_OK;
 }
 
@@ -1013,35 +1027,65 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryCloseFile(void)
  * @brief Read data from the external memory device 
  * 
  * @details This function will be called by the autopilot when data needs to be read from 
- *          a file. The file that requires reading should have already been opened by the 
- *          autopilot using the MemoryOpenFile function. This function must get one line 
- *          of data from the open file and store it in the provided buffer. The autopilot 
- *          saves one set of data per line and reads each line sequentially by repeatedly 
- *          calling this function. This means the position in the file must be saved 
- *          across function calls. 
+ *          a file. The file that requires reading from should have already been opened 
+ *          using the MemoryOpenFile function which the autopilot will have called before 
+ *          attempting to read any data. This function must read one line of data from 
+ *          the open file, save it and return the status of the operation. Saved data is 
+ *          retrieved by the autopilot using the MemoryGetData function which will be 
+ *          called following the call to this function. Data in files are formatted into 
+ *          individual lines of information and each line gets read one at a time through 
+ *          repeated calls to this function. The buffer that read data is saved to must 
+ *          be at least the size of 'memory_buff_size' so that all data from a line can 
+ *          be captured. 
  *          
- *          Note that the autopilot takes measures to ensure files are opened and closed 
- *          properly based on feedback from these functions but the user can optionally 
- *          check that a file is open before attempting to read data. 
+ *          Note that the autopilot makes decisions based on the status of these functions 
+ *          so it's important the user provides the correct return values. 
  * 
- * @see MemoryCloseFile
+ * @see MemoryGetData
  * 
- * @return VehicleHardware::MemoryStatus : MEMORY_READ_FAULT for problems, MEMORY_OK otherwise 
+ * @return VehicleHardware::MemoryStatus : MEMORY_EOF --> End of file reached (no more data) 
+ *                                         MEMORY_ACCESS_ERROR --> Problem accessing device 
+ *                                         MEMORY_OK --> Data read, everything OK 
  */
 VehicleHardware::MemoryStatus VehicleHardware::MemoryRead(void)
 {
+    TCHAR *read_status = f_gets(hardware.file_read_data, memory_buff_size, &hardware.file);
+
+    if (read_status == nullptr)
+    {
+        if (f_eof(&hardware.file) != 0)
+        {
+            return MemoryStatus::MEMORY_EOF;
+        }
+        else
+        {
+            return MemoryStatus::MEMORY_ACCESS_ERROR;
+        }
+    }
+
     return MemoryStatus::MEMORY_OK;
 }
 
 
 /**
- * @brief Get the data read from memory 
+ * @brief Get the data read from external memory 
+ * 
+ * @details The autopilot will call this function to fetch new data that was read from 
+ *          external memory device. Data that was saved in the MemoryRead function should 
+ *          be copied to the provided buffer so the autopilot can use it. Data is 
+ *          formatted into individual lines of information and each line gets read one 
+ *          at a time through repeated calls to the read and get functions.
+ * 
+ * @see MemoryRead
  * 
  * @param data_buff : buffer to store data read from the device 
+ * @param data_buff_size : size of buffer that will store the data 
  */
-void VehicleHardware::MemoryGetData(char *data_buff)
+void VehicleHardware::MemoryGetData(
+    char *data_buff, 
+    uint16_t data_buff_size)
 {
-    if (data_buff != nullptr)
+    if ((data_buff != nullptr) && (data_buff_size >= memory_buff_size))
     {
         strcpy(data_buff, hardware.file_read_data);
     }
@@ -1049,13 +1093,25 @@ void VehicleHardware::MemoryGetData(char *data_buff)
 
 
 /**
- * @brief Set the data to be written to memory 
+ * @brief Set the data to be written to external memory 
+ * 
+ * @details The autopilot will call this function to stage new data to be writing to the 
+ *          external memory device. The provided data should be copied so that it can be 
+ *          written when the MemoryWrite function is called. The buffer that the data is 
+ *          copied to must be large enough to hold all the provided data. Data is 
+ *          formatted into individual lines of information and each line gets written one 
+ *          at a time through repeated calls to the set and write functions.
+ * 
+ * @see MemoryWrite
  * 
  * @param data_buff : buffer containing data to write to the device 
+ * @param data_buff_size : size of data in the buffer 
  */
-void VehicleHardware::MemorySetData(char *data_buff)
+void VehicleHardware::MemorySetData(
+    char *data_buff, 
+    uint16_t data_buff_size)
 {
-    if (data_buff != nullptr)
+    if ((data_buff != nullptr) && (memory_buff_size >= data_buff_size))
     {
         strcpy(hardware.file_write_data, data_buff);
     }
@@ -1066,20 +1122,33 @@ void VehicleHardware::MemorySetData(char *data_buff)
  * @brief Write data to the external memory device 
  * 
  * @details This function will be called by the autopilot when data needs to be written 
- *          to a file. The file that requires writing should have already been opened by 
- *          the autopilot using the MemoryOpenFile function. This function must write the 
- *          data in the provided buffer to the open file. The autopilot saves one set of 
- *          data per line and writes each line sequentially by repeatedly calling this 
- *          function. This means the new data must be appended to the end of the file. 
+ *          to a file. The data to be written should have already been copied/saved in 
+ *          the MemorySetData function which the autopilot will have called before this. 
+ *          The file that requires writing to should have already been opened using the 
+ *          MemoryOpenFile function which the autopilot will have also called before 
+ *          attempting to write any data. This function must write the data to the open 
+ *          file and return the status of the operation. Data is formatted into individual 
+ *          lines of information and each line gets written one at a time through repeated 
+ *          calls to the set and write functions. Each new line of data must be appended 
+ *          to the end of the file. 
  *          
- *          Note that the autopilot takes measures to ensure files are opened and closed 
- *          properly based on feedback from these functions but the user can optionally 
- *          check that a file is open before attempting to write data. 
+ *          Note that the autopilot makes decisions based on the status of these functions 
+ *          so it's important the user provides the correct return values. 
  * 
- * @return VehicleHardware::MemoryStatus : MEMORY_WRITE_FAULT for problems, MEMORY_OK otherwise 
+ * @see MemorySetData
+ * 
+ * @return VehicleHardware::MemoryStatus : MEMORY_ACCESS_ERROR --> Problem accessing device 
+ *                                         MEMORY_OK --> Data written, everything OK 
  */
 VehicleHardware::MemoryStatus VehicleHardware::MemoryWrite(void)
 {
+    int num_chars = f_puts(hardware.file_write_data, &hardware.file);
+    
+    if (num_chars < 0)
+    {
+        return MemoryStatus::MEMORY_ACCESS_ERROR;
+    }
+    
     return MemoryStatus::MEMORY_OK;
 }
 

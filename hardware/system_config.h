@@ -53,9 +53,6 @@ constexpr float vs_kalman_dt = 0.05f;     // Position Kalman filter prediction c
 
 //==================================================
 
-// Data sizes 
-constexpr uint16_t vs_telemetry_buff = 1500;   // Telemetry data buffer size (bytes) 
-
 // Propulsion and steering 
 constexpr uint16_t vs_motor_pwm_off = 1520;    // PWM to turn motor(s) off - can vary between motors/ESCs 
 
