@@ -834,7 +834,7 @@ void VehicleHardware::IMUGet(
  *          directory is maintained. The status of these operations must be returned so 
  *          the autopilot knows to try again or that there's an error. 
  * 
- * @return VehicleHardware::MemoryStatus : MEMORY_DIR_FAULT for problems, MEMORY_OK otherwise 
+ * @return VehicleHardware::MemoryStatus : MEMORY_DIR_ERROR for problems, MEMORY_OK otherwise 
  */
 VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
 {
@@ -847,7 +847,7 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
 
     if (hardware.fresult != FR_OK)
     {
-        return MemoryStatus::MEMORY_DIR_FAULT;
+        return MemoryStatus::MEMORY_DIR_ERROR;
     }
     
     //==================================================
@@ -855,7 +855,7 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
     //==================================================
     // Check free space on card 
 
-    uint32_t free_clusters, free_space;
+    DWORD free_clusters, free_space;
     FATFS *fs_ptr;
     
     hardware.fresult = f_getfree("", &free_clusters, &fs_ptr);
@@ -863,11 +863,11 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
     if (hardware.fresult == FR_OK)
     {
         // Calculate the free space 
-        free_space = free_clusters * static_cast<uint32_t>(fs_ptr->csize) / 2;
+        free_space = free_clusters * static_cast<DWORD>(fs_ptr->csize) / 2;
 
         if (free_space < memory_min_free)
         {
-            return MemoryStatus::MEMORY_DIR_FAULT;
+            return MemoryStatus::MEMORY_CAP_ERROR;
         }
     }
 
@@ -890,7 +890,7 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
         
         if (hardware.fresult != FR_OK)
         {
-            return MemoryStatus::MEMORY_DIR_FAULT;
+            return MemoryStatus::MEMORY_DIR_ERROR;
         }
         
         //==================================================
@@ -902,7 +902,7 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryEstablishDirectory(void)
     
         if (hardware.fresult != FR_OK)
         {
-            return MemoryStatus::MEMORY_DIR_FAULT;
+            return MemoryStatus::MEMORY_DIR_ERROR;
         }
     
         directory_status = FLAG_SET;
@@ -947,6 +947,8 @@ void VehicleHardware::MemorySetFileName(char *file_name)
  */
 VehicleHardware::MemoryStatus VehicleHardware::MemoryOpenFile(void)
 {
+    MemoryStatus memory_status;
+
     // Check for the existance of the specified file 
     hardware.fresult = f_stat(hardware.file_name, &hardware.fno);
 
@@ -955,21 +957,40 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryOpenFile(void)
         case FR_OK:
             // File exists. Go to the beginning of the file and return a status indicating 
             // the file is ready. 
+            memory_status = MemoryStatus::MEMORY_FILE_OPENED;
             break;
 
         case FR_NO_FILE:
             // File does not exist. Return a status indicating the file is new/emty. 
+            memory_status = MemoryStatus::MEMORY_FILE_CREATED;
             break;
 
         default:
+            memory_status = MemoryStatus::MEMORY_OPEN_ERROR;
             break;
     }
 
-    // Attempt to open the file with read and write permissions. The access mode used will 
-    // open the file if it exists, or create and open a new file if it does not exist. 
-    hardware.fresult = f_open(&hardware.file, hardware.file_name, FATFS_MODE_OAWR);
+    if (memory_status != MemoryStatus::MEMORY_OPEN_ERROR)
+    {
+        // Attempt to open the file with read and write permissions. The access mode used will 
+        // open the file if it exists, or create and open a new file if it does not exist. 
+        hardware.fresult = f_open(&hardware.file, hardware.file_name, FATFS_MODE_OAWR);
+    
+        if (hardware.fresult == FR_OK)
+        {
+            if (memory_status == MemoryStatus::MEMORY_FILE_OPENED)
+            {
+                // Go to start of file. 
+                hardware.fresult = f_lseek(&hardware.file, RESET);
+            }
+        }
+        else
+        {
+            memory_status = MemoryStatus::MEMORY_OPEN_ERROR;
+        }
+    }
 
-    return MemoryStatus::MEMORY_OK;
+    return memory_status;
 }
 
 
