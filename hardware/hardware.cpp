@@ -913,7 +913,7 @@ VehicleHardware::MemoryStatus VehicleHardware::MemorySetup(void)
  * @param file_name_size : size of the file name 
  */
 void VehicleHardware::MemorySetFileName(
-    char *file_name, 
+    const char *file_name, 
     uint16_t file_name_size)
 {
     if ((file_name != nullptr) && 
@@ -1097,7 +1097,7 @@ void VehicleHardware::MemoryGetData(
  * @param data_buff_size : size of data in the buffer 
  */
 void VehicleHardware::MemorySetData(
-    char *data_buff, 
+    const char *data_buff, 
     uint16_t data_buff_size)
 {
     if ((data_buff != nullptr) && (memory_buff_size >= data_buff_size))
