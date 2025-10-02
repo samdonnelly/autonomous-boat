@@ -810,10 +810,6 @@ void VehicleHardware::IMUGet(
 //=======================================================================================
 // Memory 
 
-// Does remounting the card have an affect on the current directory or file? 
-// When you close and open a file, does the position go to the start, end, or where it was last? 
-// --> What about when you close one file, open and close another, the reopen the first file? 
-
 /**
  * @brief Setup the external memory device for file access 
  * 
@@ -977,18 +973,11 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryOpenFile(void)
     if (memory_status != MemoryStatus::MEMORY_ACCESS_ERROR)
     {
         // Attempt to open the file with read and write permissions. The access mode used will 
-        // open the file if it exists, or create and open a new file if it does not exist. 
+        // open the file if it exists, or create and open a new file if it does not exist. The 
+        // file opens with the position set to the start of the file. 
         hardware.fresult = f_open(&hardware.file, hardware.path, FATFS_MODE_OAWR);
     
-        if (hardware.fresult == FR_OK)
-        {
-            if (memory_status == MemoryStatus::MEMORY_FILE_OPENED)
-            {
-                // Go to start of file. 
-                f_rewind(&hardware.file);
-            }
-        }
-        else
+        if (hardware.fresult != FR_OK)
         {
             memory_status = MemoryStatus::MEMORY_ACCESS_ERROR;
         }
