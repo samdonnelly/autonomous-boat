@@ -116,6 +116,7 @@ public:
     FIL file;                   // File object 
     TCHAR path[path_size];
     TCHAR file_read_data[memory_buff_size], file_write_data[memory_buff_size];
+    FSIZE_t file_pos;
 
     // RC 
     SerialData<rc_msg_buff_size> rc;
@@ -1168,6 +1169,54 @@ VehicleHardware::MemoryStatus VehicleHardware::MemoryTruncate(void)
         return MemoryStatus::MEMORY_ACCESS_ERROR;
     }
     
+    return MemoryStatus::MEMORY_OK;
+}
+
+
+/**
+ * @brief Set the desired position to navigate to within the open file 
+ * 
+ * @details The autopilot will call this function to stage the desired position within 
+ *          the open file. This function should save the position so that when 
+ *          MemoryNavigate is called, the position within the file can be updated. The 
+ *          autopilot determines the position within the file it needs. 
+ * 
+ * @see MemoryNavigate
+ * 
+ * @param file_position : position within file (bytes) 
+ */
+void VehicleHardware::MemoryFilePosSet(uint32_t file_position)
+{
+    hardware.file_pos = static_cast<FSIZE_t>(file_position);
+}
+
+
+/**
+ * @brief Navigate to a position within an open file 
+ * 
+ * @details This function will be called by the autopilot when the position within the 
+ *          open file needs to be updated. The position should have already been saved in 
+ *          the MemoryFilePosSet function which the autopilot will call before this. This 
+ *          function must take the set position and move to that point within the open 
+ *          file then return the status of the operation. 
+ *          
+ *          Note that the autopilot makes decisions based on the status of these functions 
+ *          so it's important the user provides the correct return values. 
+ * 
+ * @see MemoryFilePosSet
+ * 
+ * @return VehicleHardware::MemoryStatus : MEMORY_ACCESS_ERROR --> Problem accessing device 
+ *                                         MEMORY_OK --> Position updated, everything OK 
+ */
+VehicleHardware::MemoryStatus VehicleHardware::MemoryNavigate(void)
+{
+    hardware.fresult = f_lseek(&hardware.file, hardware.file_pos);
+
+    if (hardware.fresult != FR_OK)
+    {
+        return MemoryStatus::MEMORY_ACCESS_ERROR;
+    }
+
     return MemoryStatus::MEMORY_OK;
 }
 
