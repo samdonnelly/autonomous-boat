@@ -50,19 +50,19 @@
 /**
  * @brief System Clock Configuration
  */
-void SystemClock_Config(void); 
+void SystemClock_Config(void);
 
 
 /**
  * @brief GPIO Initialization Function 
  */
-static void MX_GPIO_Init(void); 
+static void MX_GPIO_Init(void);
 
 
 /**
  * @brief This function is executed in case of error occurrence 
  */
-void Error_Handler(void); 
+void Error_Handler(void);
 
 //=======================================================================================
 
@@ -78,23 +78,23 @@ int main(void)
 
     // Reset of all peripherals, initialize the Flash interface, then initialize and set 
     // the time base source. 
-    HAL_Init(); 
+    HAL_Init();
 
     // Configure the system clock 
-    SystemClock_Config(); 
+    SystemClock_Config();
 
     // Run application setup code 
-    boat.Setup(); 
+    boat.Setup();
 
     // Initialize all configured peripherals 
-    MX_GPIO_Init(); 
-    MX_FATFS_Init(); 
+    MX_GPIO_Init();
+    MX_FATFS_Init();
 
     // Main loop 
     while (1)
     {
         // Run the application 
-        boat.Loop(); 
+        boat.Loop();
     }
 }
 
@@ -107,10 +107,10 @@ int main(void)
 // System Clock Configuration 
 void SystemClock_Config(void)
 {
-    RCC_OscInitTypeDef RCC_OscInitStruct; 
-    RCC_ClkInitTypeDef RCC_ClkInitStruct; 
-    memset((void *)&RCC_OscInitStruct, CLEAR, sizeof(RCC_OscInitTypeDef)); 
-    memset((void *)&RCC_ClkInitStruct, CLEAR, sizeof(RCC_ClkInitTypeDef)); 
+    RCC_OscInitTypeDef RCC_OscInitStruct;
+    RCC_ClkInitTypeDef RCC_ClkInitStruct;
+    memset((void *)&RCC_OscInitStruct, CLEAR, sizeof(RCC_OscInitTypeDef));
+    memset((void *)&RCC_ClkInitStruct, CLEAR, sizeof(RCC_ClkInitTypeDef));
 
     // Configure the main internal regulator output voltage 
     __HAL_RCC_PWR_CLK_ENABLE();
@@ -118,15 +118,15 @@ void SystemClock_Config(void)
 
     // Initializes the RCC Oscillators according to the specified parameters 
     // in the RCC_OscInitTypeDef structure. 
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI; 
-    RCC_OscInitStruct.HSIState = RCC_HSI_ON; 
-    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT; 
-    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON; 
-    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI; 
-    RCC_OscInitStruct.PLL.PLLM = 16; 
-    RCC_OscInitStruct.PLL.PLLN = 336; 
-    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4; 
-    RCC_OscInitStruct.PLL.PLLQ = 4; 
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+    RCC_OscInitStruct.PLL.PLLM = 16;
+    RCC_OscInitStruct.PLL.PLLN = 336;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+    RCC_OscInitStruct.PLL.PLLQ = 4;
 
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
     {
@@ -135,11 +135,11 @@ void SystemClock_Config(void)
 
     // Initializes the CPU, AHB and APB buses clocks
     RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | 
-                                  RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2; 
-    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK; 
-    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1; 
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2; 
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1; 
+                                  RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
     {
@@ -150,8 +150,8 @@ void SystemClock_Config(void)
 // GPIO Initialization Function 
 static void MX_GPIO_Init(void)
 {
-    GPIO_InitTypeDef GPIO_InitStruct; 
-    memset((void *)&GPIO_InitStruct, CLEAR, sizeof(GPIO_InitTypeDef)); 
+    GPIO_InitTypeDef GPIO_InitStruct;
+    memset((void *)&GPIO_InitStruct, CLEAR, sizeof(GPIO_InitTypeDef));
 
     // GPIO Ports Clock Enable 
     __HAL_RCC_GPIOC_CLK_ENABLE();
